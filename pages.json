@@ -1,0 +1,65 @@
+{
+	"pages": [{
+		"path": "pages/index/index",
+		"style": {
+			"navigationBarTitleText": "Bluetooth"
+		}
+	},
+	{
+		"path" : "pages/config/config",
+		"style" : 
+		{
+			"navigationBarTitleText" : "Config"
+		}
+	},
+	{
+		"path" : "pages/realTimeData/realTimeData",
+		"style" : 
+		{
+			"navigationBarTitleText" : "Real-time Data"
+		}
+	},
+	{
+		"path" : "pages/download/download",
+		"style" : 
+		{
+			"navigationBarTitleText" : "Download"
+		}
+	}],
+	"tabBar": {
+		"color": "#7A7E83",
+		"selectedColor": "#3cc51f",
+		"borderStyle": "black",
+		"backgroundColor": "#ffffff",
+		"list": [{
+			"pagePath": "pages/index/index",
+			"iconPath": "/static/image/sousuo.png",
+			"selectedIconPath": "/static/image/sousuo-1.png",
+			"text": "Search"
+		}, {
+			"pagePath": "pages/config/config",
+			"iconPath": "/static/image/config.png",
+			"selectedIconPath": "/static/image/config-1.png",
+			"text": "Config"
+		}, {
+			"pagePath": "pages/realTimeData/realTimeData",
+			"iconPath": "/static/image/realtime.png",
+			"selectedIconPath": "/static/image/realtime-1.png",
+			"text": "Real-time"
+		}, {
+			"pagePath": "pages/download/download",
+			"iconPath": "/static/image/download.png",
+			"selectedIconPath": "/static/image/download-1.png",
+			"text": "Download"
+		}]
+	},
+	"globalStyle": {
+		"navigationBarTextStyle": "black",
+		"navigationBarTitleText": "uni-app",
+		"navigationBarBackgroundColor": "#55aaff",
+		"backgroundColor": "#55aaff",
+		"app-plus": {
+			"background": "#55aaff"
+		}
+	}
+}
