@@ -1,0 +1,86 @@
+{
+  "id": "wrs-js-modbusCRCHex",
+  "displayName": "十六进制-ArrayBuffer-ASCII-modbus-crc-高低位-大小端-二进制",
+  "version": "1.0.23",
+  "description": "十六进制/ArrayBuffer/ASCII/modbus/crc/高低位/大小端/二进制等转换,常用于串口、蓝牙、socket等字节数据转换",
+  "keywords": [
+    "十六进制二进制",
+    "ASCIIArrayBuffer",
+    "modbuscrc",
+    "高低位",
+    "大小端大端小端"
+],
+  "repository": "",
+  "engines": {
+    "HBuilderX": "^3.1.0"
+  },
+  "dcloudext": {
+    "type": "sdk-js",
+    "sale": {
+      "regular": {
+        "price": "9.99"
+      },
+      "sourcecode": {
+        "price": "999.00"
+      }
+    },
+    "contact": {
+      "qq": "252797991"
+    },
+    "declaration": {
+      "ads": "无",
+      "data": "插件不采集任何数据",
+      "permissions": "无"
+    },
+    "npmurl": ""
+  },
+  "uni_modules": {
+    "dependencies": [],
+    "encrypt": [],
+    "platforms": {
+      "cloud": {
+        "tcb": "y",
+        "aliyun": "y",
+        "alipay": "n"
+      },
+      "client": {
+        "Vue": {
+          "vue2": "y",
+          "vue3": "y"
+        },
+        "App": {
+          "app-vue": "y",
+          "app-nvue": "y"
+        },
+        "H5-mobile": {
+          "Safari": "y",
+          "Android Browser": "y",
+          "微信浏览器(Android)": "y",
+          "QQ浏览器(Android)": "y"
+        },
+        "H5-pc": {
+          "Chrome": "y",
+          "IE": "y",
+          "Edge": "y",
+          "Firefox": "y",
+          "Safari": "y"
+        },
+        "小程序": {
+          "微信": "y",
+          "阿里": "y",
+          "百度": "y",
+          "字节跳动": "y",
+          "QQ": "y",
+          "钉钉": "y",
+          "快手": "y",
+          "飞书": "y",
+          "京东": "y"
+        },
+        "快应用": {
+          "华为": "y",
+          "联盟": "y"
+        }
+      }
+    }
+  }
+}

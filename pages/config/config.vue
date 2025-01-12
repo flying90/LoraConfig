@@ -3,22 +3,31 @@
 		<scroll-view scroll-y="true" class="config_container">
 			<view>
 				<view class="config_cell" v-for="(config, index) in configList" :key="index">
-					<text class="config_label">{{config.name}}{{config.unit}}: </text>
+					<text class="config_label">{{config.name}}{{config.unit?`(${config.unit})`: ""}}: </text>
 					<uni-easyinput type="text" v-model="config.value" :disabled="!config.editable" class="config_value"></uni-easyinput>
+					<label>
+						<checkbox v-if="config.name.includes('Date Time')" :checked="datetimeConfig" />
+					</label>
 				</view>
 				<br />
 			</view>
 		</scroll-view>		
 	</view>
 	<view class="sb_btn">
-		<button type="primary">Submit</button>
+		<view class="btn_group">
+			<button type="primary" :disabled="btnDisabled">Read</button>
+			<button type="primary" :disabled="btnDisabled">Submit</button>
+		</view>		
 	</view>	
 </template>
 
 <script>
+	import bleInfo from "@/common/common.js"
 	export default {
 		data() {
 			return {
+				datetimeConfig: false,
+				btnDisabled: !bleInfo.ble_connected,
 				configList: [{
 						name: "Date Time",
 						value: "",
@@ -128,6 +137,7 @@
 		flex-direction: row;
 		border: 1px solid lightgray;
 		margin: 12px 0;
+		vertical-align: bottom;
 	}
 
 	.config_label {
@@ -140,10 +150,18 @@
 		font-size: 18px;
 	}
 	
+	.btn_group{
+		display: flex;
+	}
+	
 	.sb_btn {
 		position: fixed;
 		left: 0;
 		bottom: 0;
+		width: 100%;
+	}
+	
+	button{
 		width: 100%;
 	}
 </style>

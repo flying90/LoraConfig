@@ -1,74 +1,65 @@
 <template>
 	<view class="container">
 		<view class="data_container">
-		<scroll-view scroll-y="true" >
-			<view>
-				<view class="data_show" v-for="(channel, index) in channelList" :key="index">
-					<text style="display: inline-block; font-size: 18px; width: 220px;">{{channel.channel_name}}: </text>
-					<text style="font-size: 20px;">{{channel.value}} </text>
-					<text style="font-size: 18px;">{{channel.unit}} </text>				
+			<scroll-view scroll-y="true">
+				<view>
+					<view class="data_show" v-for="(channel, index) in commonChannels" :key="index">
+						<text style="display: inline-block; font-size: 18px; width: 220px;">{{channel.channel_name}}:
+						</text>
+						<text style="font-size: 20px;">{{channel.value}} </text>
+						<text style="font-size: 18px;">{{channel.unit}} </text>
+					</view>
 				</view>
-			</view>
-		</scroll-view>	
+			</scroll-view>
 		</view>
 		<view class="read_btn">
-			<button type="primary">Read</button>
+			<button type="primary" @click="readRealtimeData">Read</button>
 		</view>
-	</view>	
+	</view>
 </template>
 
 <script>
+	import bleInfo from "@/common/common.js"
+	import {
+		getModbusCmdBuf
+	} from "@/common/modbusRtu"
 	export default {
 		data() {
 			return {
-				channelList: [{
+				readBtnStatus: !bleInfo.ble_connected,
+				commonChannels: [{
 						channel_name: "Number Of Cache",
-						value: 910,
+						value: 0,
 						unit: ""
 					},
 					{
 						channel_name: "Device Model",
-						value: "Model",
+						value: "",
 						unit: ""
 					},
 					{
 						channel_name: "Device SN",
-						value: 1233,
+						value: 0,
 						unit: ""
 					},
 					{
 						channel_name: "Battery Voltage",
-						value: 3.8,
+						value: 0.0,
 						unit: "V"
 					},
 					{
-						channel_name: "X-axis reading",
-						value: 23.5,
-						unit: "°"
-					},
-					{
-						channel_name: "Y-axis reading",
-						value: 23.5,
-						unit: "°"
-					},
-					{
-						channel_name: "Z-axis reading",
-						value: 23.5,
-						unit: "°"
-					},
-					{
 						channel_name: "Onboard Temperature",
-						value: 20,
+						value: 0,
 						unit: "℃"
 					},
 					{
 						channel_name: "Onboard Humidity",
-						value: 20,
+						value: 0,
 						unit: "%"
 					},
 					{
 						channel_name: "Barometric Pressure",
-						value: 101,
+						value: 0,
 						unit: "kPa"
 					},
 					{
@@ -78,14 +69,107 @@
 					},
 					{
 						channel_name: "Lora Signal Strength",
-						value: -40,
+						value: 0,
 						unit: "dBm"
+					}
+				],
+				dwl04Channels: [{
+						channel_name: "Frequency of CH1",
+						value: 0,
+						unit: "Hz"
+					},
+					{
+						channel_name: "Temperature of CH1",
+						value: 0,
+						unit: "℃"
+					},
+					{
+						channel_name: "Frequency of CH2",
+						value: 0,
+						unit: "Hz"
+					},
+					{
+						channel_name: "Temperature of CH2",
+						value: 0,
+						unit: "℃"
+					},
+					{
+						channel_name: "Frequency of CH3",
+						value: 0,
+						unit: "Hz"
+					},
+					{
+						channel_name: "Temperature of CH3",
+						value: 0,
+						unit: "℃"
+					},
+					{
+						channel_name: "Frequency of CH4",
+						value: 0,
+						unit: "Hz"
+					},
+					{
+						channel_name: "Temperature of CH4",
+						value: 0,
+						unit: "℃"
+					},
+				],
+				fdChannels: [{
+						channel_name: "X-axis reading",
+						value: 0,
+						unit: "°"
+					},
+					{
+						channel_name: "Y-axis reading",
+						value: 0,
+						unit: "°"
+					},
+					{
+						channel_name: "Z-axis reading",
+						value: 0,
+						unit: "°"
 					},
 				]
 			}
 		},
 		methods: {
+			readRealtimeData() {
+				bleInfo.ble_recv_data = ""
+				let cmdStr = "01 03 00 00 00 00 02";
+				let modbusCmd = getModbusCmdBuf(cmdStr);
+				uni.writeBLECharacteristicValue({
+					deviceId: bleInfo.ble_device.deviceId,
+					serviceId: bleInfo.ble_service.uuid,
+					characteristicId: bleInfo.ble_send_characteristic.uuid,
+					value: modbusCmd,
+					success: (res) => {
+						console.log("读取数据成功: " + res.errMsg);
+						setTimeout(() => {
+							if (bleInfo.ble_recv_data) {
+								console.log("ble info " + bleInfo.ble_recv_data);
+								// if (crcCheck(bleInfo.ble_recv_data)) {
+								// 	//010318 0000001e 00241022 00173634 0003a982 00001770 00000190 9bc0
+								// 	this.readInterval = byteStr2Int(bleInfo.ble_recv_data.slice(6, 14));
+								// 	// this.nowTime = byteStr2Int(bleInfo.ble_recv_data.slice(6, 14));
+								// 	this.nowTime = this.parseDateTime(bleInfo.ble_recv_data.slice(16, 32));
+								// 	this.devSN = byteStr2Int(bleInfo.ble_recv_data.slice(30, 38));
+								// 	this.freqUpperLimit = byteStr2Float(bleInfo.ble_recv_data.slice(38, 46));
+								// 	this.freqLowerLimit = byteStr2Float(bleInfo.ble_recv_data.slice(46, 54));
+								// 	uni.showToast({
+								// 		title: "读取成功."
+								// 	});
+								// } else {
+								// 	bleInfo.ble_recv_data = '';
+								// }
+							}
+						}, 3000);
 
+					},
+					fail: (err) => {
+						console.error("读取设置失败: " + err.errMsg);
+					}
+				})
+			},
 		}
 	}
 </script>
@@ -96,14 +180,17 @@
 		font-size: 14px;
 		line-height: 24px;
 	}
+
 	.data_container {
 		height: 80vh;
 	}
-	.data_show{
+
+	.data_show {
 		height: 35px;
 		border: 1px solid lightgrey;
 		margin: 8px 0;
 	}
+
 	.read_btn {
 		width: 100%;
 		position: fixed;

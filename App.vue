@@ -1,11 +1,21 @@
 <script>
 	export default {
 		onLaunch: function() {
-			console.warn('当前组件仅支持 uni_modules 目录结构 ，请升级 HBuilderX 到 3.1.0 版本以上！')
 			console.log('App Launch')
 		},
 		onShow: function() {
 			console.log('App Show')
+			const sysSetting = uni.getSystemSetting();
+			if (sysSetting.bluetoothEnabled) {
+				uni.openBluetoothAdapter({
+					success: e => {
+						console.log("蓝牙初始化成功");
+					},
+					fail: (e) => {
+						console.log("蓝牙初始化失败，错误码：" + (e.errCode || e.errMsg));
+					}
+				})
+			}
 		},
 		onHide: function() {
 			console.log('App Hide')
