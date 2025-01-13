@@ -7,13 +7,13 @@
 						<text style="display: inline-block; font-size: 18px; width: 220px;">{{channel.channel_name}}:
 						</text>
 						<text style="font-size: 20px;">{{channel.value}} </text>
-						<text style="font-size: 18px;">{{channel.unit}} </text>
+						<text style="font-size: 18px;"> {{channel.unit}}</text>
 					</view>
 				</view>
 			</scroll-view>
 		</view>
 		<view class="read_btn">
-			<button type="primary" @click="readRealtimeData">Read</button>
+			<button type="primary" :disabled="readBtnStatus" @click="readRealtimeData">Read</button>
 		</view>
 	</view>
 </template>
@@ -21,12 +21,12 @@
 <script>
 	import bleInfo from "@/common/common.js"
 	import {
-		getModbusCmdBuf
+		getModbusCmdBuf,
+		crcCheck
 	} from "@/common/modbusRtu"
 	export default {
 		data() {
 			return {
-				readBtnStatus: !bleInfo.ble_connected,
 				commonChannels: [{
 						channel_name: "Number Of Cache",
 						value: 0,
@@ -132,10 +132,15 @@
 				]
 			}
 		},
+		computed: {
+			readBtnStatus() {
+				return !bleInfo.ble_connected;
+			}
+		},
 		methods: {
 			readRealtimeData() {
 				bleInfo.ble_recv_data = ""
-				let cmdStr = "01 03 00 00 00 00 02";
+				let cmdStr = "01 03 00 00 00 00 15";
 				let modbusCmd = getModbusCmdBuf(cmdStr);
 				uni.writeBLECharacteristicValue({
 					deviceId: bleInfo.ble_device.deviceId,
@@ -147,20 +152,23 @@
 						setTimeout(() => {
 							if (bleInfo.ble_recv_data) {
 								console.log("ble info " + bleInfo.ble_recv_data);
-								// if (crcCheck(bleInfo.ble_recv_data)) {
-								// 	//010318 0000001e 00241022 00173634 0003a982 00001770 00000190 9bc0
-								// 	this.readInterval = byteStr2Int(bleInfo.ble_recv_data.slice(6, 14));
-								// 	// this.nowTime = byteStr2Int(bleInfo.ble_recv_data.slice(6, 14));
-								// 	this.nowTime = this.parseDateTime(bleInfo.ble_recv_data.slice(16, 32));
-								// 	this.devSN = byteStr2Int(bleInfo.ble_recv_data.slice(30, 38));
-								// 	this.freqUpperLimit = byteStr2Float(bleInfo.ble_recv_data.slice(38, 46));
-								// 	this.freqLowerLimit = byteStr2Float(bleInfo.ble_recv_data.slice(46, 54));
-								// 	uni.showToast({
-								// 		title: "读取成功."
-								// 	});
-								// } else {
-								// 	bleInfo.ble_recv_data = '';
-								// }
+								if (crcCheck(bleInfo.ble_recv_data)) {
+									//0103 54 000001c3 0000000a 0003a982 00000144 45cccc00 4479f99a 45cccc00 4479f99a 45cccc00 4479f99a 45cccc00 4479f99a
+									//41c9c4c4 42024aa6 446430d8 41f00000 3f99999a 00000000 00000000 00000000 c2340000 6610
+									let data = bleInfo.ble_recv_data.slice(6, bleInfo.ble_recv_data.length-4).match(/.{1,8}/g);
+									console.log(data);									
+									// this.commonChannels[0].value = byteStr2Int(bleInfo.ble_recv_data.slice(6, 14));
+									// this.nowTime = byteStr2Int(bleInfo.ble_recv_data.slice(6, 14));
+									// this.nowTime = this.parseDateTime(bleInfo.ble_recv_data.slice(16, 32));
+									// this.devSN = byteStr2Int(bleInfo.ble_recv_data.slice(30, 38));
+									// this.freqUpperLimit = byteStr2Float(bleInfo.ble_recv_data.slice(38, 46));
+									// this.freqLowerLimit = byteStr2Float(bleInfo.ble_recv_data.slice(46, 54));
+									uni.showToast({
+										title: "success."
+									});
+								} else {
+									bleInfo.ble_recv_data = '';
+								}
 							}
 						}, 3000);
 

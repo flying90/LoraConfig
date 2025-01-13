@@ -18,7 +18,6 @@
 		</scroll-view>
 		<view class="srh_btn">
 			<button type="primary" @click="startBluetoothDevicesDiscovery">Start Scan</button>
-			<button type="default" @click="sendReadCMD">read</button>
 		</view>
 	</view>
 </template>
@@ -28,55 +27,13 @@
 	export default {
 		data() {
 			return {
-				bleDevList: [],
-				items: [{
-						id: 1,
-						name: 'Item 1'
-					},
-					{
-						id: 2,
-						name: 'Item 2'
-					},
-					{
-						id: 3,
-						name: 'Item 3'
-					},
-				]
+				bleDevList: [],				
 			}
 		},
 		computed: {
 
 		},
 		methods: {
-			sendReadCMD() {
-				const buffer = new ArrayBuffer(9)
-				const dataView = new DataView(buffer)
-				dataView.setUint8(0, 0x01)
-				dataView.setUint8(1, 0x03)
-				dataView.setUint8(2, 0x00)
-				dataView.setUint8(3, 0x00)
-				dataView.setUint8(4, 0x00)
-				dataView.setUint8(5, 0x00)
-				dataView.setUint8(6, 0x02)
-				dataView.setUint8(7, 0x8A)
-				dataView.setUint8(8, 0x32)
-				uni.writeBLECharacteristicValue({
-					// 这里的 deviceId 需要在 getBluetoothDevices 或 onBluetoothDeviceFound 接口中获取
-					deviceId: bleInfo.ble_device.deviceId,
-					// 这里的 serviceId 需要在 getBLEDeviceServices 接口中获取
-					serviceId: bleInfo.ble_service.uuid,
-					// 这里的 characteristicId 需要在 getBLEDeviceCharacteristics 接口中获取
-					characteristicId: bleInfo.ble_send_characteristic.uuid,
-					// 这里的value是ArrayBuffer类型
-					value: buffer,
-					success(res) {
-						console.log('writeBLECharacteristicValue success', res.errMsg)
-					},
-					fail(res) {
-						console.log('Write Data Error', res.errCode, res.errMsg)
-					}
-				})
-			},
 			/**
 			 * 开始搜索蓝牙设备
 			 */
@@ -182,12 +139,11 @@
 					success: (res) => {
 						uni.hideLoading();
 						uni.showToast({
-							title: "连接成功.",
+							title: "success.",
 							duration: 2000
 						});
 						console.log("开启监听成功: " + res.errMsg);
 						bleInfo.ble_connected = true;
-						console.log(bleInfo);
 						this.listenValueChange();
 					},
 					fail(err) {
@@ -258,46 +214,48 @@
 				bleInfo.ble_device = device;
 				uni.showLoading({
 					mask: true,
-					title: "连接中..."
+					title: "Connecting..."
 				});
-				uni.createBLEConnection({
-					// 这里的 deviceId 需要已经通过 createBLEConnection 与对应设备建立链接
-					deviceId: bleInfo.ble_device.deviceId,
-					success: res => {
-						console.log('连接蓝牙成功:' + res.errMsg);
-						bleInfo.ble_device = device;
-						setTimeout(() => {
-							uni.setBLEMTU({
-								deviceId: bleInfo.ble_device.deviceId,
-								mtu: 247,
-								success: (res) => {
-									console.log("设置MTU成功: " + res.errMsg);
-									setTimeout(() => {
-										this.getBLEDeviceServices()
-									}, 1000)
-								},
-								fail: (err) => {
-									uni.hideLoading();
-									console.log("设置MTU失败: " + err.errMsg)
-								}
+				setTimeout(() => {
+					uni.createBLEConnection({
+						// 这里的 deviceId 需要已经通过 createBLEConnection 与对应设备建立链接
+						deviceId: bleInfo.ble_device.deviceId,
+						success: res => {
+							console.log('连接蓝牙成功:' + res.errMsg);
+							bleInfo.ble_device = device;
+							setTimeout(() => {
+								uni.setBLEMTU({
+									deviceId: bleInfo.ble_device.deviceId,
+									mtu: 247,
+									success: (res) => {
+										console.log("设置MTU成功: " + res.errMsg);
+										setTimeout(() => {
+											this.getBLEDeviceServices()
+										}, 1000)
+									},
+									fail: (err) => {
+										uni.hideLoading();
+										console.log("设置MTU失败: " + err.errMsg)
+									}
+								});
+							}, 500);
+						},
+						fail: e => {
+							uni.hideLoading();
+							console.log('连接低功耗蓝牙失败，错误码：' + e);
+							bleInfo.ble_device = null;
+							bleInfo.ble_service = null;
+							bleInfo.ble_recv_characteristic = null;
+							bleInfo.ble_send_characteristic = null;
+							bleInfo.ble_connected = false;
+							uni.showToast({
+								title: 'failed.',
+								icon: 'error',
+								duration: 2000
 							});
-						}, 500);
-					},
-					fail: e => {
-						uni.hideLoading();
-						console.log('连接低功耗蓝牙失败，错误码：' + e);
-						bleInfo.ble_device = null;
-						bleInfo.ble_service = null;
-						bleInfo.ble_recv_characteristic = null;
-						bleInfo.ble_send_characteristic = null;
-						bleInfo.ble_connected = false;
-						uni.showToast({
-							title: '连接失败',
-							icon: 'error',
-							duration: 2000
-						});
-					}
-				});
+						}
+					});
+				}, 1500);
 			},
 			/**
 			 * 断开与低功耗蓝牙设备的连接

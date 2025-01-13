@@ -13,12 +13,13 @@
 			<input type="text" value="/path/to/download" style="height: 30px; border: 1px solid grey; background: lightgray; " disabled />
 		</view>
 		<view class="dw_btn">
-			<button type="primary" class="">Download</button>
+			<button type="primary" :disabled="btnDisabled">Download</button>
 		</view>		
 	</view>
 </template>
 
 <script>
+	import bleInfo from "@/common/common.js"
 	export default {
 		data() {
 			return {
@@ -29,6 +30,9 @@
 		computed: {
 			percent() {
 				return (this.current / this.total * 100).toFixed(0)
+			},
+			btnDisabled(){
+				return !bleInfo.ble_connected;
 			}
 		},
 		methods: {

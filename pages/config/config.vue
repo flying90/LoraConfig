@@ -27,7 +27,6 @@
 		data() {
 			return {
 				datetimeConfig: false,
-				btnDisabled: !bleInfo.ble_connected,
 				configList: [{
 						name: "Date Time",
 						value: "",
@@ -101,6 +100,11 @@
 						unit: ""
 					},
 				]
+			}
+		},
+		computed:{
+			btnDisabled(){
+				return !bleInfo.ble_connected;
 			}
 		},
 		methods: {
