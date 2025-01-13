@@ -2,7 +2,7 @@
 	<view class="container">
 		<scroll-view scroll-y="true" class="config_container">
 			<view>
-				<view class="config_cell" v-for="(config, index) in configList" :key="index">
+				<view class="config_cell" v-for="(config, index) in commonConfigure" :key="index">
 					<text class="config_label">{{config.name}}{{config.unit?`(${config.unit})`: ""}}: </text>
 					<uni-easyinput type="text" v-model="config.value" :disabled="!config.editable" class="config_value"></uni-easyinput>
 					<label>
@@ -11,73 +11,78 @@
 				</view>
 				<br />
 			</view>
-		</scroll-view>		
+		</scroll-view>
 	</view>
 	<view class="sb_btn">
 		<view class="btn_group">
-			<button type="primary" :disabled="btnDisabled">Read</button>
-			<button type="primary" :disabled="btnDisabled">Submit</button>
-		</view>		
-	</view>	
+			<button type="primary" :disabled="btnDisabled" @click="readConfigure">Read</button>
+			<button type="primary" :disabled="btnDisabled" @click="commitConfigure">Submit</button>
+		</view>
+	</view>
 </template>
 
 <script>
-	import bleInfo from "@/common/common.js"
+	import bleInfo from "@/common/common"
+	import {
+		getModbusCmdBuf,
+		crcCheck
+	} from "@/common/modbusRtu";
 	export default {
 		data() {
 			return {
 				datetimeConfig: false,
-				configList: [{
+				commonConfigure: [{
+						name: "Collection Cycle",
+						value: 1,
+						editable: true,
+						unit: " min(1-1440)"
+					},
+					{
 						name: "Date Time",
 						value: "",
 						editable: false,
 						unit: ""
 					},
 					{
-						name: "Collection Cycle",
-						value: 100,
-						editable: true,
-						unit: "minute(s)"
-					},
-					{
 						name: "Device SN",
-						value: 100,
-						editable: false,
+						value: 1,
+						editable: true,
 						unit: ""
 					},
 					{
 						name: "Frequency Band",
-						value: 100,
-						editable: true,
+						value: [1, 2, 3, 4, 5],
+						editable: false,
 						unit: ""
 					},
 					{
 						name: "Channel",
-						value: 100,
+						value: "",
 						editable: true,
 						unit: ""
 					},
 					{
 						name: "fport",
-						value: 100,
+						value: 1,
 						editable: true,
 						unit: ""
 					},
 					{
 						name: "DEVEUI",
-						value: "9DA7B011D40ABC8A",
+						value: "",
 						editable: true,
 						unit: ""
 					},
 					{
 						name: "APPKEY",
-						value: "00112233445566778899AABBCCDDEEFF",
+						value: "",
 						editable: true,
 						unit: ""
-					},
-					{
+					}
+				],
+				dwl4Configure: [{
 						name: "Channel Index",
-						value: 1,
+						value: [1, 2, 3, 4],
 						editable: false,
 						unit: ""
 					},
@@ -102,8 +107,8 @@
 				]
 			}
 		},
-		computed:{
-			btnDisabled(){
+		computed: {
+			btnDisabled() {
 				return !bleInfo.ble_connected;
 			}
 		},
@@ -116,7 +121,67 @@
 				let hours = date.getHours().toString().padStart(2, '0')
 				let minutes = date.getMinutes().toString().padStart(2, '0')
 				let seconds = date.getSeconds().toString().padStart(2, '0')
-				this.configList[0].value = `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`
+				this.commonConfigure[0].value = `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`
+			},
+			readConfigure() {
+				bleInfo.ble_recv_data = ""
+				let cmdStr = "01 03 00 01 32 00 01"; //let cmdStr = "01 15 00 01 32 00 01 00001771 00000192 00000003 00000f78";
+				let modbusCmd = getModbusCmdBuf(cmdStr);
+				uni.writeBLECharacteristicValue({
+					deviceId: bleInfo.ble_device.deviceId,
+					serviceId: bleInfo.ble_service.uuid,
+					characteristicId: bleInfo.ble_send_characteristic.uuid,
+					value: modbusCmd,
+					success: (res) => {
+						console.log("读取数据成功: " + res.errMsg);
+						setTimeout(() => {
+							if (bleInfo.ble_recv_data) {
+								console.log("ble info " + bleInfo.ble_recv_data);
+								if (crcCheck(bleInfo.ble_recv_data)) {
+									// 0103 48 0000001e 00250113 00173754 0003a982 00000001 00000000 00000000 0000005d 00000000 00000000 00000000 
+									// 00000032 00000000 00000000 5572404c 696e6b4c 6f526132 30313823 fd5e
+									let data = bleInfo.ble_recv_data.slice(6, bleInfo.ble_recv_data.length - 4).match(/.{1,8}/g);
+									console.log(data);
+									// if (bleInfo.ble_device.name.includes("DWL4")) {
+									// 	for (let i = 0; i < data.length; i++) {
+									// 		if (i < 4) {
+									// 			if (i === 3) {
+									// 				this.commonChannels[i].value = byteStr2Int(data[i]) / 100;
+									// 			} else {
+									// 				this.commonChannels[i].value = byteStr2Int(data[i]);
+									// 			}
+									// 		} else if (i < 12) {
+									// 			this.dwl4Channels[i - 4].value = byteStr2Float(data[i]).toFixed(1);
+									// 		} else if (i < 14) {
+									// 			this.commonChannels[i - 8].value = byteStr2Float(data[i]).toFixed(1);
+									// 		} else if (i > 18) {
+									// 			if (i === 19) {
+									// 				this.commonChannels[i - 12].value = (byteStr2Float(data[i]).toFixed(0) == 1) ? "Joined" : "Not Joined";
+									// 			} else {
+									// 				this.commonChannels[i - 12].value = byteStr2Float(data[i]).toFixed(1);
+									// 			}
+									// 		}
+									// 	}
+									// } else if (bleInfo.ble_device.name.includes("FD")) {
+
+									// }
+									uni.showToast({
+										title: "success."
+									});
+								} else {
+									bleInfo.ble_recv_data = '';
+								}
+							}
+						}, 3000);
+
+					},
+					fail: (err) => {
+						console.error("读取设置失败: " + err.errMsg);
+					}
+				})
+			},
+			commitConfigure() {
+
 			}
 		},
 		mounted() {
@@ -131,17 +196,17 @@
 		font-size: 14px;
 		line-height: 24px;
 	}
-	
+
 	.config_container {
 		height: 88vh;
 	}
-	
+
 	.config_cell {
 		display: flex;
 		flex-direction: row;
 		border: 1px solid lightgray;
 		margin: 12px 0;
-		vertical-align: bottom;
+		align-items: center;
 	}
 
 	.config_label {
@@ -153,19 +218,19 @@
 	.config_value {
 		font-size: 18px;
 	}
-	
-	.btn_group{
+
+	.btn_group {
 		display: flex;
 	}
-	
+
 	.sb_btn {
 		position: fixed;
 		left: 0;
 		bottom: 0;
 		width: 100%;
 	}
-	
-	button{
+
+	button {
 		width: 100%;
 	}
 </style>

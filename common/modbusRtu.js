@@ -36,7 +36,6 @@ export function crcCheck(hexString) {
  * @returns {ArrayBuffer} modbus cmd buffer:带有CRC校验的二进制buffer
  */
 export function getModbusCmdBuf(hexString) {
-	// console.log("getModbusCmdBuf ---> " + hexString)
 	let hexStr = hexString.replace(/\s+/g, "");
 	let hexArr = HexUtils.hexToByteArray(hexStr);
 	let crc = CRCUtils.getCRC16_MODBUS(hexArr);
@@ -47,7 +46,5 @@ export function getModbusCmdBuf(hexString) {
 	});
 	dataView.setInt8(hexArr.length, crc & 0xFF);
 	dataView.setInt8(hexArr.length + 1, crc >> 8);
-	// dataView.setInt8(hexArr.length, crc >> 8);
-	// dataView.setInt8(hexArr.length + 1, crc & 0xFF);
 	return cmdbuffer;
 }

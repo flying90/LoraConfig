@@ -27,7 +27,7 @@
 	export default {
 		data() {
 			return {
-				bleDevList: [],				
+				bleDevList: [],
 			}
 		},
 		computed: {
@@ -123,7 +123,7 @@
 			listenValueChange() {
 				uni.onBLECharacteristicValueChange(res => {
 					let resHex = this.ab2hex(res.value);
-					console.log("解析后数据: " + resHex);
+					// console.log("解析后数据: " + resHex);
 					bleInfo.ble_recv_data += resHex;
 				});
 				// console.log("蓝牙缓存: " + bleInfo.ble_recv_data);
@@ -242,7 +242,7 @@
 						},
 						fail: e => {
 							uni.hideLoading();
-							console.log('连接低功耗蓝牙失败，错误码：' + e);
+							console.log('连接低功耗蓝牙失败，错误码：' + e.errCode);
 							bleInfo.ble_device = null;
 							bleInfo.ble_service = null;
 							bleInfo.ble_recv_characteristic = null;
@@ -255,7 +255,7 @@
 							});
 						}
 					});
-				}, 1500);
+				}, 500);
 			},
 			/**
 			 * 断开与低功耗蓝牙设备的连接
