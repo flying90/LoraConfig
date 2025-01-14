@@ -3,7 +3,7 @@
 		<scroll-view scroll-y="true" class="config_container">
 			<view>
 				<view class="config_cell" v-for="(config, index) in commonConfigure" :key="index">
-					<text class="config_label">{{config.name}}{{config.unit?`(${config.unit})`: ""}}: </text>
+					<text class="config_label">{{config.name}}{{config.unit?`\n(${config.unit})`: ""}}: </text>
 					<uni-easyinput type="text" v-model="config.value" :disabled="!config.editable" class="config_value"></uni-easyinput>
 					<label>
 						<checkbox v-if="config.name.includes('Date Time')" :checked="datetimeConfig" />
@@ -35,7 +35,7 @@
 						name: "Collection Cycle",
 						value: 1,
 						editable: true,
-						unit: " min(1-1440)"
+						unit: "min[1-1440]"
 					},
 					{
 						name: "Date Time",
@@ -123,9 +123,49 @@
 				let seconds = date.getSeconds().toString().padStart(2, '0')
 				this.commonConfigure[0].value = `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`
 			},
-			readConfigure() {
+			readCommonConfigure() {
+				bleInfo.ble_recv_data = "";
+				let cmdStr = "01 03 00 01 00 00 12";
+				let modbusCmd = getModbusCmdBuf(cmdStr);
+				uni.writeBLECharacteristicValue({
+					deviceId: bleInfo.ble_device.deviceId,
+					serviceId: bleInfo.ble_service.uuid,
+					characteristicId: bleInfo.ble_send_characteristic.uuid,
+					value: modbusCmd,
+					success: (res) => {
+						console.log("读取数据成功: " + res.errMsg);
+						setTimeout(() => {
+							if (bleInfo.ble_recv_data) {
+								console.log("ble info " + bleInfo.ble_recv_data);
+								if (crcCheck(bleInfo.ble_recv_data)) {
+									let data = bleInfo.ble_recv_data.slice(6, bleInfo.ble_recv_data.length - 4).match(/.{1,8}/g);
+									console.log(data);
+									
+									uni.showToast({
+										title: "success."
+									});
+								} else {
+									bleInfo.ble_recv_data = '';
+								}
+							}
+						}, 3000);
+
+					},
+					fail: (err) => {
+						console.error("读取设置失败: " + err.errMsg);
+					}
+				})
+			},
+			readSpecialConfigure(channelIndex){
+				bleInfo.ble_recv_data = "";
+				let cmdStr = `01 03 00 01 32 00 ${channelIndex.toString(16).toUpperCase()}`
+				console.log(cmdStr);
+				
+			},
+			commitConfigure() {
 				bleInfo.ble_recv_data = ""
-				let cmdStr = "01 03 00 01 32 00 01"; //let cmdStr = "01 15 00 01 32 00 01 00001771 00000192 00000003 00000f78";
+				let cmdStr = "01 03 00 01 32 00 01";
+				// let cmdStr = "01 15 00 01 32 00 05 00000001 00001771 00000192 00000003 00000f78";
 				let modbusCmd = getModbusCmdBuf(cmdStr);
 				uni.writeBLECharacteristicValue({
 					deviceId: bleInfo.ble_device.deviceId,
@@ -139,7 +179,7 @@
 								console.log("ble info " + bleInfo.ble_recv_data);
 								if (crcCheck(bleInfo.ble_recv_data)) {
 									// 0103 48 0000001e 00250113 00173754 0003a982 00000001 00000000 00000000 0000005d 00000000 00000000 00000000 
-									// 00000032 00000000 00000000 5572404c 696e6b4c 6f526132 30313823 fd5e
+									// 00000032 00000000 00000000 5572404c 696e6b4c 6f526132 30313823 TILT5e
 									let data = bleInfo.ble_recv_data.slice(6, bleInfo.ble_recv_data.length - 4).match(/.{1,8}/g);
 									console.log(data);
 									// if (bleInfo.ble_device.name.includes("DWL4")) {
@@ -162,7 +202,7 @@
 									// 			}
 									// 		}
 									// 	}
-									// } else if (bleInfo.ble_device.name.includes("FD")) {
+									// } else if (bleInfo.ble_device.name.includes("TILT")) {
 
 									// }
 									uni.showToast({
@@ -179,9 +219,6 @@
 						console.error("读取设置失败: " + err.errMsg);
 					}
 				})
-			},
-			commitConfigure() {
-
 			}
 		},
 		mounted() {

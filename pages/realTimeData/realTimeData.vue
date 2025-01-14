@@ -3,20 +3,20 @@
 		<view class="data_container">
 			<scroll-view scroll-y="true">
 				<view>
-					<view class="data_show" v-for="(comChannel, comIndex) in commonChannels" :key="comIndex">
-						<text style="display: inline-block; font-size: 18px; width: 220px;">{{comChannel.channel_name}}: </text>
-						<text style="font-size: 20px;">{{comChannel.value}} </text>
-						<text style="font-size: 18px;">{{comChannel.unit}}</text>
+					<view class="data_cell" v-for="(comChannel, comIndex) in commonChannels" :key="comIndex">
+						<text class="data_label">{{comChannel.channel_name}}: </text>
+						<text class="data_value">{{comChannel.value}} </text>
+						<text class="data_unit">{{comChannel.unit}}</text>
 					</view>
-					<view class="data_show" v-if="deviceName.includes('DWL4')" v-for="(dwl4Channel, dwl4Index) in dwl4Channels" :key="dwl4Index+9">
-						<text style="display: inline-block; font-size: 18px; width: 220px;">{{dwl4Channel.channel_name}}: </text>
-						<text style="font-size: 20px;">{{dwl4Channel.value}} </text>
-						<text style="font-size: 18px;">{{dwl4Channel.unit}}</text>
+					<view class="data_cell" v-if="deviceName.includes('DWL4')" v-for="(dwl4Channel, dwl4Index) in dwl4Channels" :key="dwl4Index+9">
+						<text class="data_label">{{dwl4Channel.channel_name}}: </text>
+						<text class="data_value">{{dwl4Channel.value}} </text>
+						<text class="data_unit">{{dwl4Channel.unit}}</text>
 					</view>
-					<view class="data_show" v-else-if="deviceName.includes('FD')" v-for="(fdChannel, fdIndex) in fdChannels" :key="fdIndex+9">
-						<text style="display: inline-block; font-size: 18px; width: 220px;">{{channel.channel_name}}: </text>
-						<text style="font-size: 20px;">{{channel.value}} </text>
-						<text style="font-size: 18px;">{{channel.unit}}</text>
+					<view class="data_cell" v-else-if="deviceName.includes('TILT')" v-for="(tiltChannel, tiltIndex) in tiltChannels" :key="tiltIndex+9">
+						<text class="data_label">{{channel.channel_name}}: </text>
+						<text class="data_value">{{channel.value}} </text>
+						<text class="data_unit">{{channel.unit}}</text>
 					</view>
 				</view>
 			</scroll-view>
@@ -127,7 +127,7 @@
 						unit: " ℃"
 					},
 				],
-				fdChannels: [{
+				tiltChannels: [{
 						channel_name: "X-axis reading",
 						value: 0,
 						unit: " °"
@@ -172,11 +172,22 @@
 									//0103 54 000001c3 0000000a 0003a982 00000144 45cccc00 4479f99a 45cccc00 4479f99a 45cccc00 4479f99a 45cccc00 4479f99a
 									//41c9c4c4 42024aa6 446430d8 41f00000 3f99999a 00000000 00000000 00000000 c2340000 6610
 									let data = bleInfo.ble_recv_data.slice(6, bleInfo.ble_recv_data.length - 4).match(/.{1,8}/g);
-									// console.log(data);
+									console.log(data);
 									if (bleInfo.ble_device.name.includes("DWL4")) {
 										for (let i = 0; i < data.length; i++) {
 											if (i < 4) {
-												if (i === 3) {
+												if (i === 1) {
+													switch (byteStr2Int(data[i])) {
+														case 10:
+															this.commonChannels[i].value = "DWL4"
+															break;
+														case 11:
+															this.commonChannels[i].value = "TILT"
+															break;
+														default:
+															break;
+													}
+												} else if (i === 3) {
 													this.commonChannels[i].value = byteStr2Int(data[i]) / 100;
 												} else {
 													this.commonChannels[i].value = byteStr2Int(data[i]);
@@ -193,7 +204,7 @@
 												}
 											}
 										}
-									} else if (bleInfo.ble_device.name.includes("FD")) {
+									} else if (bleInfo.ble_device.name.includes("TILT")) {
 										for (let i = 0; i < data.length; i++) {
 											if (i < 4) {
 												if (i === 3) {
@@ -244,10 +255,30 @@
 		height: 80vh;
 	}
 
-	.data_show {
-		height: 35px;
+	.data_cell {
+		/* height: 35px;
 		border: 1px solid lightgrey;
+		margin: 8px 0; */
+		display: flex;
+		flex-direction: row;
+		border: 1px solid lightgray;
 		margin: 8px 0;
+		align-items: center;
+	}
+
+	.data_label {
+		display: inline-block;
+		font-size: 18px;
+		width: 215px;
+	}
+
+	.data_value {
+		font-size: 20px;
+	}
+
+	.data_unit {
+		font-size: 18px;
+		padding-left: 5px;
 	}
 
 	.read_btn {

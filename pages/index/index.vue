@@ -39,6 +39,8 @@
 			 */
 			startBluetoothDevicesDiscovery() {
 				uni.startBluetoothDevicesDiscovery({
+					powerLevel: "high",
+					services: ["0000FFF1"],
 					success: e => {
 						console.log('开始搜索蓝牙设备:' + e.errMsg);
 						this.searchLoad = true;
@@ -88,7 +90,7 @@
 						// console.log(JSON.stringify(res))
 
 						for (let device of res.devices) {
-							if (device.name.includes("FD") || device.name.includes("DWL4"))
+							if (device.name.includes("TILT") || device.name.includes("DWL4"))
 								this.bleDevList.push(device)
 						}
 					},
@@ -224,29 +226,12 @@
 							console.log('连接蓝牙成功:' + res.errMsg);
 							bleInfo.ble_device = device;
 							setTimeout(() => {
-								uni.setBLEMTU({
-									deviceId: bleInfo.ble_device.deviceId,
-									mtu: 247,
-									success: (res) => {
-										console.log("设置MTU成功: " + res.errMsg);
-										setTimeout(() => {
-											this.getBLEDeviceServices()
-										}, 1000)
-									},
-									fail: (err) => {
-										uni.hideLoading();
-										console.log("设置MTU失败: " + err.errMsg)
-									}
-								});
-							}, 500);
+								this.getBLEDeviceServices();
+							}, 1000);
 						},
 						fail: e => {
 							uni.hideLoading();
 							console.log('连接低功耗蓝牙失败，错误码：' + e.errCode);
-							bleInfo.ble_device = null;
-							bleInfo.ble_service = null;
-							bleInfo.ble_recv_characteristic = null;
-							bleInfo.ble_send_characteristic = null;
 							bleInfo.ble_connected = false;
 							uni.showToast({
 								title: 'failed.',
@@ -278,10 +263,26 @@
 						console.log('断开低功耗蓝牙失败，错误码：' + e.errCode);
 					}
 				});
+			},
+			onBLEConnectionStateChange() {
+				uni.onBLEConnectionStateChange(res => {
+					// 该方法回调中可以用于处理连接意外断开等异常情况
+					console.log(`蓝牙连接状态 -------------------------->`);
+					console.log(JSON.stringify(res));
+					if (!res.connected) {
+						uni.showModal({
+							showCancel: false,
+							title: "Warning",
+							content: "Bluetooth LE disconnected!",
+							confirmText: "Confirm"
+						});
+						bleInfo.ble_connected = false;
+					}
+				});
 			}
 		},
 		mounted() {
-
+			this.onBLEConnectionStateChange();
 		}
 	}
 </script>
