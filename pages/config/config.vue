@@ -87,23 +87,54 @@
 						unit: ""
 					},
 					{
+						name: "Frequency Upper Limit",
+						value: 0,
+						editable: true,
+						unit: ""
+					},
+					{
+						name: "Frequency Lower Limit",
+						value: 0,
+						editable: true,
+						unit: ""
+					},
+					{
+						name: "Temperature Coefficient K",
+						value: 0,
+						editable: true,
+						unit: ""
+					},
+					{
+						name: "Temperature Coefficient B",
+						value: 0,
+						editable: true,
+						unit: ""
+					}
+				],
+				tiltConfigure: [{
+						name: "Channel Index",
+						value: [1],
+						editable: false,
+						unit: ""
+					},
+					{
 						name: "X-axis Coefficient",
 						value: 100,
 						editable: true,
 						unit: ""
 					},
 					{
-						name: "Y-axis coefficient",
+						name: "Y-axis Coefficient",
 						value: 100,
 						editable: true,
 						unit: ""
 					},
 					{
-						name: "Z-axis coefficient",
+						name: "Z-axis Coefficient",
 						value: 100,
 						editable: true,
 						unit: ""
-					},
+					}
 				]
 			}
 		},
@@ -140,10 +171,6 @@
 								if (crcCheck(bleInfo.ble_recv_data)) {
 									let data = bleInfo.ble_recv_data.slice(6, bleInfo.ble_recv_data.length - 4).match(/.{1,8}/g);
 									console.log(data);
-									
-									uni.showToast({
-										title: "success."
-									});
 								} else {
 									bleInfo.ble_recv_data = '';
 								}
@@ -156,11 +183,12 @@
 					}
 				})
 			},
-			readSpecialConfigure(channelIndex){
+			readSpecialConfigure(channelIndex) {
 				bleInfo.ble_recv_data = "";
 				let cmdStr = `01 03 00 01 32 00 ${channelIndex.toString(16).toUpperCase()}`
 				console.log(cmdStr);
-				
+				let modbusCmd = getModbusCmdBuf(cmdStr);
+
 			},
 			commitConfigure() {
 				bleInfo.ble_recv_data = ""
