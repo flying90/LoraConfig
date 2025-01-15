@@ -23,7 +23,8 @@
 </template>
 
 <script>
-	import bleInfo from "@/common/common.js"
+	import bleInfo from "@/common/common"
+	import { ab2hex } from "@/common/utils";
 	export default {
 		data() {
 			return {
@@ -108,23 +109,11 @@
 				});
 			},
 			/**
-			 * 将二进制数据转换为十六进制字符串
-			 */
-			ab2hex(buffer) {
-				const hexArr = Array.prototype.map.call(
-					new Uint8Array(buffer),
-					function(bit) {
-						return ('00' + bit.toString(16)).slice(-2)
-					}
-				)
-				return hexArr.join('')
-			},
-			/**
 			 * 监听处理特征值数据
 			 */
 			listenValueChange() {
 				uni.onBLECharacteristicValueChange(res => {
-					let resHex = this.ab2hex(res.value);
+					let resHex = ab2hex(res.value);
 					// console.log("解析后数据: " + resHex);
 					bleInfo.ble_recv_data += resHex;
 				});
