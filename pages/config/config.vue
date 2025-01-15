@@ -12,7 +12,7 @@
 					</view>
 					<view v-else-if="index === 3" class="config_cell">
 						<text class="config_label">{{config.name}}{{config.unit?`\n(${config.unit})`: ""}}: </text>
-						<uni-data-select v-model="config.value" :localdata="config.range" @change="bandChange" :clear="false"></uni-data-select>
+						<uni-data-select v-model="config.value" :localdata="config.range" @change="bandChange" :clear="false" :disabled="!config.editable"></uni-data-select>
 					</view>
 					<view v-else-if="index === 4" class="config_cell">
 						<text class="config_label">{{config.name}}{{config.unit?`\n(${config.unit})`: ""}}: </text>
@@ -31,7 +31,30 @@
 						<uni-easyinput type="text" v-model="config.value" :disabled="!config.editable" class="config_value"></uni-easyinput>
 					</view>
 				</view>
-				<br />
+				<view v-if="devName.includes('DWL4')">
+					<view v-for="(config,index) in dwl4Configure" :key="index">
+						<view v-if="index === 0" class="config_cell">
+							<text class="config_label">{{config.name}}{{config.unit?`\n(${config.unit})`: ""}}: </text>
+							<uni-data-select v-model="config.value" :localdata="config.range" @change="channelChange" :clear="false" :disabled="!config.editable"></uni-data-select>
+						</view>
+						<view v-else class="config_cell">
+							<text class="config_label">{{config.name}}{{config.unit?`\n(${config.unit})`: ""}}: </text>
+							<uni-easyinput type="text" v-model="config.value" :disabled="!config.editable" class="config_value"></uni-easyinput>
+						</view>
+					</view>
+				</view>
+				<view v-else-if="devName.includes('TILT')">
+					<view v-for="(config,index) in tiltConfigure" :key="index" class="config_cell">
+						<view v-if="index === 0" class="config_cell">
+							<text class="config_label">{{config.name}}{{config.unit?`\n(${config.unit})`: ""}}: </text>
+							<uni-data-select v-model="config.value" :localdata="config.range" @change="channelChange" :clear="false" :disabled="!config.editable"></uni-data-select>
+						</view>
+						<view v-else class="config_cell">
+							<text class="config_label">{{config.name}}{{config.unit?`\n(${config.unit})`: ""}}: </text>
+							<uni-easyinput type="text" v-model="config.value" :disabled="!config.editable" class="config_value"></uni-easyinput>
+						</view>
+					</view>
+				</view>
 			</view>
 		</scroll-view>
 	</view>
@@ -121,7 +144,7 @@
 								"text": "AS923-4"
 							}
 						],
-						"editable": false,
+						"editable": true,
 						"unit": ""
 					},
 					{
@@ -257,8 +280,21 @@
 				// ],
 				dwl4Configure: [{
 						name: "Channel Index",
-						value: [1, 2, 3, 4],
-						editable: false,
+						value: 1,
+						range: [{
+							value: 1,
+							text: "Device Channel 1"
+						}, {
+							value: 2,
+							text: "Device Channel 2"
+						}, {
+							value: 3,
+							text: "Device Channel 3"
+						}, {
+							value: 4,
+							text: "Device Channel 4"
+						}],
+						editable: true,
 						unit: ""
 					},
 					{
@@ -288,7 +324,11 @@
 				],
 				tiltConfigure: [{
 						name: "Channel Index",
-						value: [1],
+						value: 1,
+						range: [{
+							value: 1,
+							text: "Device Channel 1"
+						}],
 						editable: false,
 						unit: ""
 					},
@@ -321,13 +361,24 @@
 				return `20${this.commonConfigure[1].date_value} ${this.commonConfigure[1].time_value}`;
 			},
 			loraChannels() {
-				return `${this.commonConfigure[4].ch0_31_value.join(",")+','+this.commonConfigure[4].ch32_63_value.join(",")+','+this.commonConfigure[4].ch64_71_value.join(",")}`;
+				let channels = "";
+				if (this.commonConfigure[4].ch0_31_value.length > 0) {
+					channels += (this.commonConfigure[4].ch0_31_value.join(",") + ',');
+				} else if (this.commonConfigure[4].ch32_63_value.length > 0) {
+					channels += (this.commonConfigure[4].ch32_63_value.join(",") + ',');
+				} else if (this.commonConfigure[4].ch64_71_value.length > 0) {
+					channels += this.commonConfigure[4].ch64_71_value.join(",");
+				}
+				return channels;
 			},
-			devEUI(){
+			devEUI() {
 				return `${this.commonConfigure[6].value_h+this.commonConfigure[6].value_l}`;
 			},
-			appKey(){
+			appKey() {
 				return `${this.commonConfigure[7].value_1+this.commonConfigure[7].value_2+this.commonConfigure[7].value_3+this.commonConfigure[7].value_4}`;
+			},
+			devName() {
+				return bleInfo.ble_device ? bleInfo.ble_device.name : "";
 			}
 		},
 		methods: {
@@ -398,17 +449,27 @@
 								}
 							}
 							console.log("通用设置: ", this.commonConfigure);
-						}, 3000);
+						}, 2000);
 
 					},
 					fail: (err) => {
 						console.error("读取通用设置失败: " + err.errMsg);
+						uni.showToast({
+							title: "read failed.",
+							icon: "error",
+							duration: 2000
+						})
 					}
 				})
 			},
-			readSpecialConfigure(channelIndex) {
+			readSpecialConfigure() {
 				bleInfo.ble_recv_data = "";
-				let cmdStr = `01 03 00 01 32 00 ${("00" + channelIndex.toString(16).toUpperCase()).slice(-2)}`;
+				let cmdStr = "";
+				if (bleInfo.ble_device.name.includes("DWL4")) {
+					cmdStr = `01 03 00 01 32 00 ${("00" + this.dwl4Configure[0].value.toString(16).toUpperCase()).slice(-2)}`;
+				} else if (bleInfo.ble_device.name.includes("TILT")) {
+					cmdStr = `01 03 00 01 32 00 ${("00" + this.tiltConfigure[0].value.toString(16).toUpperCase()).slice(-2)}`;
+				}
 				console.log(cmdStr);
 				let modbusCmd = getModbusCmdBuf(cmdStr);
 				uni.writeBLECharacteristicValue({
@@ -424,20 +485,37 @@
 								if (crcCheck(bleInfo.ble_recv_data)) {
 									let data = bleInfo.ble_recv_data.slice(6, bleInfo.ble_recv_data.length - 4).match(/.{1,8}/g);
 									console.log(data);
+									if (bleInfo.ble_device.name.includes("DWL4")) {
+										for (let i = 0; i < data.length; i++) {
+											this.dwl4Configure[i + 1].value = byteStr2Int(data[i]);
+										}
+									} else if (bleInfo.ble_device.name.includes("TILT")) {
+										for (let i = 0; i < data.length; i++) {
+											this.tiltConfigure[i + 1].value = byteStr2Int(data[i]);
+										}
+									}
 								} else {
 									bleInfo.ble_recv_data = '';
 								}
 							}
-						}, 3000);
+						}, 2000);
 
 					},
 					fail: (err) => {
 						console.error("读取特殊设置失败: " + err.errMsg);
+						uni.showToast({
+							title: "read failed.",
+							icon: "error",
+							duration: 2000
+						})
 					}
 				})
 			},
 			readConfigure() {
 				this.readCommonConfigure();
+				setTimeout(() => {
+					this.readSpecialConfigure();
+				}, 3000);
 			},
 			commitConfigure() {
 				bleInfo.ble_recv_data = ""
@@ -499,9 +577,22 @@
 			},
 			bandChange() {
 				console.log("选择Band", this.commonConfigure[3]);
+			},
+			channelChange() {
+				this.readSpecialConfigure();
 			}
 		},
-		mounted() {}
+		mounted() {},
+		onShow() {
+			// if (bleInfo.ble_connected) {
+			// 	uni.showLoading({
+			// 		mask: true,
+			// 		title: "Reading..."
+			// 	});
+			// 	this.readConfigure();
+			// 	uni.hideLoading();
+			// }
+		}
 	}
 </script>
 
