@@ -12,11 +12,15 @@
 					</view>
 					<view v-else-if="index === 3" class="config_cell">
 						<text class="config_label">{{config.name}}{{config.unit?`\n(${config.unit})`: ""}}: </text>
-						<uni-data-select v-model="config.value" :localdata="config.range" @change="bandChange" :clear="false" :disabled="!config.editable" placeholder="Select"></uni-data-select>
+						<uni-data-select v-model="config.value" :localdata="config.range" :clear="false" :disabled="!config.editable" placeholder="Select"></uni-data-select>
 					</view>
-					<view v-else-if="index === 4" class="config_cell">
-						<text class="config_label">{{config.name}}{{config.unit?`\n(${config.unit})`: ""}}: </text>
-						<uni-easyinput type="text" v-model="loraChannels" :disabled="!config.editable" class="config_value" @change="loraChannelsChange"></uni-easyinput>
+					<view v-else-if="index === 4">
+						<view class="config_cell">
+							<text class="config_label">{{config.name}}{{config.unit?`\n(${config.unit})`: ""}}: </text>
+							<uni-easyinput type="text" :value="loraChannels" :disabled="!config.editable" class="config_value" @change="loraChannelsChange"></uni-easyinput>
+						</view>
+
+						<text v-if="!loraChannelsChecked" class="warning">channels verification failed</text>
 					</view>
 					<view v-else-if="index === 6" class="config_cell">
 						<text class="config_label">{{config.name}}{{config.unit?`\n(${config.unit})`: ""}}: </text>
@@ -28,7 +32,7 @@
 					</view>
 					<view v-else class="config_cell">
 						<text class="config_label">{{config.name}}{{config.unit?`\n(${config.unit})`: ""}}: </text>
-						<uni-easyinput type="text" v-model="config.value" :disabled="!config.editable" @change="configChange" class="config_value"></uni-easyinput>
+						<uni-easyinput type="text" v-model="config.value" :disabled="!config.editable" class="config_value"></uni-easyinput>
 					</view>
 				</view>
 				<view v-if="devName.includes('DWL4')">
@@ -83,6 +87,7 @@
 		data() {
 			return {
 				datetimeConfig: false,
+				loraChannelsChecked: true,
 				commonConfigure: [{
 						name: "Collection Cycle",
 						value: 1,
@@ -139,7 +144,7 @@
 								text: "AS923-4"
 							}
 						],
-						editable: false,
+						editable: true,
 						unit: ""
 					},
 					{
@@ -258,19 +263,38 @@
 			loraChannels() {
 				let channels = "";
 				if (this.commonConfigure[4].ch0_31_value.length > 0) {
-					channels += (this.commonConfigure[4].ch0_31_value.join(",") + ',');
-				} else if (this.commonConfigure[4].ch32_63_value.length > 0) {
-					channels += (this.commonConfigure[4].ch32_63_value.join(",") + ',');
-				} else if (this.commonConfigure[4].ch64_71_value.length > 0) {
-					channels += this.commonConfigure[4].ch64_71_value.join(",");
+					channels += (this.commonConfigure[4].ch0_31_value + ',');
+				}
+				if (this.commonConfigure[4].ch32_63_value.length > 0) {
+					channels += (this.commonConfigure[4].ch32_63_value + ',');
+				}
+				if (this.commonConfigure[4].ch64_71_value.length > 0) {
+					channels += this.commonConfigure[4].ch64_71_value;
 				}
 				return channels;
 			},
-			devEUI() {
-				return `${this.commonConfigure[6].value_h+this.commonConfigure[6].value_l}`;
+			devEUI: {
+				get() {
+					return `${this.commonConfigure[6].value_h+this.commonConfigure[6].value_l}`;
+				},
+				set(newValue) {
+					let value = newValue.padStart(16, '0');
+					this.commonConfigure[6].value_h = value.slice(0, 8);
+					this.commonConfigure[6].value_l = value.slice(8, 16);
+				}
 			},
-			appKey() {
-				return `${this.commonConfigure[7].value_1+this.commonConfigure[7].value_2+this.commonConfigure[7].value_3+this.commonConfigure[7].value_4}`;
+			appKey: {
+				get() {
+					return `${this.commonConfigure[7].value_1+this.commonConfigure[7].value_2+this.commonConfigure[7].value_3+this.commonConfigure[7].value_4}`;
+				},
+				set(newValue) {
+					let value = newValue.padStart(32, '0');
+					this.commonConfigure[7].value_1 = value.slice(0, 8);
+					this.commonConfigure[7].value_2 = value.slice(8, 16);
+					this.commonConfigure[7].value_3 = value.slice(16, 24);
+					this.commonConfigure[7].value_4 = value.slice(24, 32);
+				}
+
 			},
 			devName() {
 				return bleInfo.ble_device ? bleInfo.ble_device.name : "";
@@ -438,7 +462,7 @@
 					"6f526132",
 					"30313823"
 				];
-				for (let i = 0; i < commonConfigDate.length; i++) {
+				for (let i = 0; i < commonConfigData.length; i++) {
 					switch (i) {
 						case 0:
 							commonConfigData[0] = int2ByteStr(this.commonConfigure[0].value);
@@ -458,8 +482,27 @@
 						case 7:
 							commonConfigData[7] = int2ByteStr(this.commonConfigure[3].value);
 							break;
-						case 8:
-							commonConfigData[8] = chMaskEncode(this.commonConfigure[4].ch0_31_value);
+						case 10:
+							let channelsArray = [...this.commonConfigure[4].ch0_31_value.split(','), ...this.commonConfigure[4].ch32_63_value.split(','), ...this.commonConfigure[4].ch64_71_value.split(
+								',')];
+							let mask = chMaskEncode(channelsArray)
+							console.log(mask);
+							commonConfigData[8] = mask.groupA_mask;
+							commonConfigData[9] = mask.groupB_mask;
+							commonConfigData[10] = mask.groupC_mask;
+							break;
+						case 11:
+							commonConfigData[11] = int2ByteStr(this.commonConfigure[5].value);
+							break;
+						case 13:
+							commonConfigData[12] = this.commonConfigure[6].value_h;
+							commonConfigData[13] = this.commonConfigure[6].value_l;
+							break;
+						case 17:
+							commonConfigData[14] = this.commonConfigure[7].value_1;
+							commonConfigData[15] = this.commonConfigure[7].value_2;
+							commonConfigData[16] = this.commonConfigure[7].value_3;
+							commonConfigData[17] = this.commonConfigure[7].value_4;
 							break;
 						default:
 							break;
@@ -467,16 +510,41 @@
 				}
 				let cmdStr = `01 15 00 01 00 ${this.commonConfigure.length.toString(16).padStart(4,'0')} ${commonConfigData}`;
 				console.log(cmdStr);
-				
-			},
-			configChange() {
 
 			},
-			bandChange() {
-				console.log("选择Band", this.commonConfigure[3]);
-			},
-			loraChannelsChange() {
-				console.log(this.commonConfigure[4]);
+			loraChannelsChange(content) {
+				if (content) {
+					if (content.endsWith(',')) {
+						content = content.slice(0, -1);
+					}
+					let channels = content.split(',');
+					let ch0_31 = [];
+					let ch32_63 = [];
+					let ch64_71 = [];
+					for (let element of channels) {
+						let channel = parseInt(element);
+						this.loraChannelsChecked = true;
+						if (this.commonConfigure[3].value == 90 || this.commonConfigure[3].value == 91) {
+							if (channel > 71) {
+								this.loraChannelsChecked = false;
+							}
+						} else {
+							if (channel > 31) {
+								this.loraChannelsChecked = false;
+							}
+						}
+						if (0 <= channel && channel <= 31) {
+							ch0_31.push(channel);
+						} else if (32 <= channel && channel <= 63) {
+							ch32_63.push(channel);
+						} else {
+							ch64_71.push(channel);
+						}
+					}
+					this.commonConfigure[4].ch0_31_value = ch0_31.join(',');
+					this.commonConfigure[4].ch32_63_value = ch32_63.join(',');
+					this.commonConfigure[4].ch64_71_value = ch64_71.join(',');
+				}
 			},
 			channelChange() {
 				this.readSpecialConfigure();
@@ -529,6 +597,11 @@
 		left: 0;
 		bottom: 0;
 		width: 100%;
+	}
+
+	.warning {
+		font-size: 12px;
+		color: red;
 	}
 
 	button {

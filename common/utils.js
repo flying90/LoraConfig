@@ -142,7 +142,14 @@ export function chMaskEncode(channelArray) {
 	let groupA_mask = ch0_7_mask | (ch8_15_mask << 8) | (ch16_23_mask << 16) | (ch24_31_mask << 24);
 	let groupB_mask = ch32_39_mask | (ch40_47_mask << 8) | (ch48_55_mask << 16) | (ch56_63_mask << 24);
 	let groupC_mask = ch64_71_mask;
-	return [groupA_mask, groupB_mask, groupC_mask];
+	groupA_mask = groupA_mask.toString(16).padStart(8, '0')
+	groupB_mask = groupB_mask.toString(16).padStart(8, '0')
+	groupC_mask = groupC_mask.toString(16).padStart(8, '0')
+	return {
+		groupA_mask,
+		groupB_mask,
+		groupC_mask
+	};
 }
 
 /**
@@ -158,5 +165,5 @@ export function chMaskDecode(chmask) {
 			channelIndexArray.push(i + 1);
 		}
 	}
-	return channelIndexArray;
+	return channelIndexArray.join(',');
 }
