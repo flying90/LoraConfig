@@ -12,11 +12,11 @@
 					</view>
 					<view v-else-if="index === 3" class="config_cell">
 						<text class="config_label">{{config.name}}{{config.unit?`\n(${config.unit})`: ""}}: </text>
-						<uni-data-select v-model="config.value" :localdata="config.range" @change="bandChange" :clear="false" :disabled="!config.editable"></uni-data-select>
+						<uni-data-select v-model="config.value" :localdata="config.range" @change="bandChange" :clear="false" :disabled="!config.editable" placeholder="Select"></uni-data-select>
 					</view>
 					<view v-else-if="index === 4" class="config_cell">
 						<text class="config_label">{{config.name}}{{config.unit?`\n(${config.unit})`: ""}}: </text>
-						<uni-easyinput type="text" v-model="loraChannels" :disabled="!config.editable" class="config_value"></uni-easyinput>
+						<uni-easyinput type="text" v-model="loraChannels" :disabled="!config.editable" class="config_value" @change="loraChannelsChange"></uni-easyinput>
 					</view>
 					<view v-else-if="index === 6" class="config_cell">
 						<text class="config_label">{{config.name}}{{config.unit?`\n(${config.unit})`: ""}}: </text>
@@ -28,7 +28,7 @@
 					</view>
 					<view v-else class="config_cell">
 						<text class="config_label">{{config.name}}{{config.unit?`\n(${config.unit})`: ""}}: </text>
-						<uni-easyinput type="text" v-model="config.value" :disabled="!config.editable" class="config_value"></uni-easyinput>
+						<uni-easyinput type="text" v-model="config.value" :disabled="!config.editable" @change="configChange" class="config_value"></uni-easyinput>
 					</view>
 				</view>
 				<view v-if="devName.includes('DWL4')">
@@ -61,7 +61,8 @@
 	<view class="sb_btn">
 		<view class="btn_group">
 			<button type="primary" :disabled="btnDisabled" @click="readConfigure">Read</button>
-			<button type="primary" :disabled="btnDisabled" @click="commitConfigure">Submit</button>
+			<button type="primary" @click="commitConfigure">Submit</button>
+			<!-- 			<button type="primary" :disabled="btnDisabled" @click="commitConfigure">Submit</button> -->
 		</view>
 	</view>
 </template>
@@ -69,6 +70,7 @@
 <script>
 	import {
 		byteStr2Int,
+		int2ByteStr,
 		chMaskEncode,
 		chMaskDecode
 	} from "@/common/utils";
@@ -82,202 +84,95 @@
 			return {
 				datetimeConfig: false,
 				commonConfigure: [{
-						"name": "Collection Cycle",
-						"value": 30,
-						"editable": true,
-						"unit": "min[1-1440]"
+						name: "Collection Cycle",
+						value: 1,
+						editable: true,
+						unit: "min[1-1440]"
 					},
 					{
-						"name": "Date Time",
-						"date_value": "25-01-15",
-						"time_value": "08:50:55",
-						"editable": false,
-						"unit": ""
+						name: "Date Time",
+						date_value: "",
+						time_value: "",
+						editable: false,
+						unit: ""
 					},
 					{
-						"name": "Device SN",
-						"value": 240002,
-						"editable": true,
-						"unit": ""
+						name: "Device SN",
+						value: 1,
+						editable: true,
+						unit: ""
 					},
 					{
-						"name": "Frequency Band",
-						"value": 93,
-						"range": [{
-								"value": 84,
-								"text": "RU864"
+						name: "Frequency Band",
+						value: 84,
+						range: [{
+								value: 84,
+								text: "RU864"
 							},
 							{
-								"value": 85,
-								"text": "IN865"
+								value: 85,
+								text: "IN865"
 							},
 							{
-								"value": 86,
-								"text": "EU868"
-							},
-							{
-								"value": 90,
-								"text": "US915"
-							},
-							{
-								"value": 91,
-								"text": "AU915"
-							},
-							{
-								"value": 92,
-								"text": "KR920"
-							},
-							{
-								"value": 93,
-								"text": "AS923-1"
-							},
-							{
-								"value": 94,
-								"text": "AS923-2"
-							},
-							{
-								"value": 95,
-								"text": "AS923-3"
-							},
-							{
-								"value": 96,
-								"text": "AS923-4"
+								value: 86,
+								text: "EU868"
+							}, {
+								value: 90,
+								text: "US915"
+							}, {
+								value: 91,
+								text: "AU915"
+							}, {
+								value: 92,
+								text: "KR920"
+							}, {
+								value: 93,
+								text: "AS923-1"
+							}, {
+								value: 94,
+								text: "AS923-2"
+							}, {
+								value: 95,
+								text: "AS923-3"
+							}, {
+								value: 96,
+								text: "AS923-4"
 							}
 						],
-						"editable": true,
-						"unit": ""
+						editable: false,
+						unit: ""
 					},
 					{
-						"name": "Channels",
-						"ch0_31_value": [5, 8, 15],
-						"ch32_63_value": [40, 50, 34],
-						"ch64_71_value": [65],
-						"editable": true,
-						"unit": ""
+						name: "Channels",
+						ch0_31_value: "",
+						ch32_63_value: "",
+						ch64_71_value: "",
+						editable: true,
+						unit: ""
 					},
 					{
-						"name": "fport",
-						"value": 50,
-						"editable": true,
-						"unit": ""
+						name: "fport",
+						value: 1,
+						editable: true,
+						unit: ""
 					},
 					{
-						"name": "DEVEUI",
-						"value_h": "00000000",
-						"value_l": "00000000",
-						"editable": true,
-						"unit": ""
+						name: "DEVEUI",
+						value_h: "",
+						value_l: "",
+						editable: true,
+						unit: ""
 					},
 					{
-						"name": "APPKEY",
-						"value_1": "5572404c",
-						"value_2": "696e6b4c",
-						"value_3": "6f526132",
-						"value_4": "30313823",
-						"editable": true,
-						"unit": ""
+						name: "APPKEY",
+						value_1: "",
+						value_2: "",
+						value_3: "",
+						value_4: "",
+						editable: true,
+						unit: ""
 					}
 				],
-				// [{
-				// 		name: "Collection Cycle",
-				// 		value: 1,
-				// 		editable: true,
-				// 		unit: "min[1-1440]"
-				// 	},
-				// 	{
-				// 		name: "Date Time",
-				// 		date_value: "",
-				// 		time_value: "",
-				// 		editable: false,
-				// 		unit: ""
-				// 	},
-				// 	{
-				// 		name: "Device SN",
-				// 		value: 1,
-				// 		editable: true,
-				// 		unit: ""
-				// 	},
-				// 	//- 84 RU864
-				// 	// - 85 IN865
-				// 	// - 86 EU868
-				// 	// - 90 US915
-				// 	// - 91 AU915
-				// 	// - 92 KR920
-				// 	// - 93 AS923-1
-				// 	// - 94 AS923-2
-				// 	// - 95 AS923-3
-				// 	// - 96 AS923-4
-				// 	{
-				// 		name: "Frequency Band",
-				// 		value: 0,
-				// 		range: [{
-				// 				value: 84,
-				// 				text: "RU864"
-				// 			},
-				// 			{
-				// 				value: 85,
-				// 				text: "IN865"
-				// 			},
-				// 			{
-				// 				value: 86,
-				// 				text: "EU868"
-				// 			}, {
-				// 				value: 90,
-				// 				text: "US915"
-				// 			}, {
-				// 				value: 91,
-				// 				text: "AU915"
-				// 			}, {
-				// 				value: 92,
-				// 				text: "KR920"
-				// 			}, {
-				// 				value: 93,
-				// 				text: "AS923-1"
-				// 			}, {
-				// 				value: 94,
-				// 				text: "AS923-2"
-				// 			}, {
-				// 				value: 95,
-				// 				text: "AS923-3"
-				// 			}, {
-				// 				value: 96,
-				// 				text: "AS923-4"
-				// 			}
-				// 		],
-				// 		editable: false,
-				// 		unit: ""
-				// 	},
-				// 	{
-				// 		name: "Channels",
-				// 		ch0_31_value: "",
-				// 		ch32_63_value: "",
-				// 		ch64_71_value: "",
-				// 		editable: true,
-				// 		unit: ""
-				// 	},
-				// 	{
-				// 		name: "fport",
-				// 		value: 1,
-				// 		editable: true,
-				// 		unit: ""
-				// 	},
-				// 	{
-				// 		name: "DEVEUI",
-				// 		value_h: "",
-				// 		value_l: "",
-				// 		editable: true,
-				// 		unit: ""
-				// 	},
-				// 	{
-				// 		name: "APPKEY",
-				// 		value_1: "",
-				// 		value_2: "",
-				// 		value_3: "",
-				// 		value_4: "",
-				// 		editable: true,
-				// 		unit: ""
-				// 	}
-				// ],
 				dwl4Configure: [{
 						name: "Channel Index",
 						value: 1,
@@ -383,14 +278,18 @@
 		},
 		methods: {
 			getCurrentTime() {
-				let date = new Date()
-				let year = date.getFullYear()
-				let month = (date.getMonth() + 1).toString().padStart(2, '0')
-				let day = date.getDay().toString().padStart(2, '0')
-				let hours = date.getHours().toString().padStart(2, '0')
-				let minutes = date.getMinutes().toString().padStart(2, '0')
-				let seconds = date.getSeconds().toString().padStart(2, '0')
-				this.commonConfigure[0].value = `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`
+				let date = new Date();
+				let hours = date.getHours().toString().padStart(2, '0');
+				let minutes = date.getMinutes().toString().padStart(2, '0');
+				let seconds = date.getSeconds().toString().padStart(2, '0');
+				return `00${hours}${minutes}${seconds}`;
+			},
+			getCurrentDate() {
+				let date = new Date();
+				let year = date.getFullYear();
+				let month = (date.getMonth() + 1).toString().padStart(2, '0');
+				let day = date.getDate().toString().padStart(2, '0');
+				return `00${year}${month}${day}`;
 			},
 			readCommonConfigure() {
 				bleInfo.ble_recv_data = "";
@@ -518,80 +417,76 @@
 				}, 3000);
 			},
 			commitConfigure() {
-				bleInfo.ble_recv_data = ""
-				let cmdStr = "01 03 00 01 32 00 01";
-				// let cmdStr = "01 15 00 01 32 00 05 00000001 00001771 00000192 00000003 00000f78";
-				let modbusCmd = getModbusCmdBuf(cmdStr);
-				uni.writeBLECharacteristicValue({
-					deviceId: bleInfo.ble_device.deviceId,
-					serviceId: bleInfo.ble_service.uuid,
-					characteristicId: bleInfo.ble_send_characteristic.uuid,
-					value: modbusCmd,
-					success: (res) => {
-						console.log("读取数据成功: " + res.errMsg);
-						setTimeout(() => {
-							if (bleInfo.ble_recv_data) {
-								console.log("ble info " + bleInfo.ble_recv_data);
-								if (crcCheck(bleInfo.ble_recv_data)) {
-									// 0103 48 0000001e 00250113 00173754 0003a982 00000001 00000000 00000000 0000005d 00000000 00000000 00000000 
-									// 00000032 00000000 00000000 5572404c 696e6b4c 6f526132 30313823 TILT5e
-									let data = bleInfo.ble_recv_data.slice(6, bleInfo.ble_recv_data.length - 4).match(/.{1,8}/g);
-									console.log(data);
-									// if (bleInfo.ble_device.name.includes("DWL4")) {
-									// 	for (let i = 0; i < data.length; i++) {
-									// 		if (i < 4) {
-									// 			if (i === 3) {
-									// 				this.commonChannels[i].value = byteStr2Int(data[i]) / 100;
-									// 			} else {
-									// 				this.commonChannels[i].value = byteStr2Int(data[i]);
-									// 			}
-									// 		} else if (i < 12) {
-									// 			this.dwl4Channels[i - 4].value = byteStr2Float(data[i]).toFixed(1);
-									// 		} else if (i < 14) {
-									// 			this.commonChannels[i - 8].value = byteStr2Float(data[i]).toFixed(1);
-									// 		} else if (i > 18) {
-									// 			if (i === 19) {
-									// 				this.commonChannels[i - 12].value = (byteStr2Float(data[i]).toFixed(0) == 1) ? "Joined" : "Not Joined";
-									// 			} else {
-									// 				this.commonChannels[i - 12].value = byteStr2Float(data[i]).toFixed(1);
-									// 			}
-									// 		}
-									// 	}
-									// } else if (bleInfo.ble_device.name.includes("TILT")) {
-
-									// }
-									uni.showToast({
-										title: "success."
-									});
-								} else {
-									bleInfo.ble_recv_data = '';
-								}
+				bleInfo.ble_recv_data = "";
+				let commonConfigData = [
+					"0000001e",
+					"00250116",
+					"00072946",
+					"0003a982",
+					"00000001",
+					"00000000",
+					"00000000",
+					"0000005d",
+					"00000000",
+					"00000000",
+					"00000000",
+					"00000032",
+					"00000000",
+					"00000000",
+					"5572404c",
+					"696e6b4c",
+					"6f526132",
+					"30313823"
+				];
+				for (let i = 0; i < commonConfigDate.length; i++) {
+					switch (i) {
+						case 0:
+							commonConfigData[0] = int2ByteStr(this.commonConfigure[0].value);
+							break;
+						case 2:
+							if (this.datetimeConfig) {
+								commonConfigData[1] = this.getCurrentDate();
+								commonConfigData[2] = this.getCurrentTime();
+							} else {
+								commonConfigData[1] = "00000000";
+								commonConfigData[2] = "00000000";
 							}
-						}, 3000);
-
-					},
-					fail: (err) => {
-						console.error("读取设置失败: " + err.errMsg);
+							break;
+						case 3:
+							commonConfigData[3] = int2ByteStr(this.commonConfigure[2].value);
+							break;
+						case 7:
+							commonConfigData[7] = int2ByteStr(this.commonConfigure[3].value);
+							break;
+						case 8:
+							commonConfigData[8] = chMaskEncode(this.commonConfigure[4].ch0_31_value);
+							break;
+						default:
+							break;
 					}
-				})
+				}
+				let cmdStr = `01 15 00 01 00 ${this.commonConfigure.length.toString(16).padStart(4,'0')} ${commonConfigData}`;
+				console.log(cmdStr);
+				
+			},
+			configChange() {
+
 			},
 			bandChange() {
 				console.log("选择Band", this.commonConfigure[3]);
+			},
+			loraChannelsChange() {
+				console.log(this.commonConfigure[4]);
 			},
 			channelChange() {
 				this.readSpecialConfigure();
 			}
 		},
-		mounted() {},
+		mounted() {
+
+		},
 		onShow() {
-			// if (bleInfo.ble_connected) {
-			// 	uni.showLoading({
-			// 		mask: true,
-			// 		title: "Reading..."
-			// 	});
-			// 	this.readConfigure();
-			// 	uni.hideLoading();
-			// }
+
 		}
 	}
 </script>

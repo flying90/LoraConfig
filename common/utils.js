@@ -72,6 +72,35 @@ export function byteStr2Int(byteStr) {
 }
 
 /**
+ * @param {number} intNumber: 待转换十进制整型数字
+ * @returns {string} byteStr: 4字节ABCD顺序的整型字节码
+ */
+export function int2ByteStr(intNumber) {
+	return intNumber.toString(16).padStart(8, '0');
+}
+
+/**
+ * @param {number} floatNumber: 待转换的浮点数
+ * @returns {string} byteStr: 4字节ABCD顺序的浮点数字节码
+ */
+export function float2ByteStr(floatNumber) {
+	// 创建一个4字节的缓冲区
+	const buffer = new ArrayBuffer(4);
+	const view = new DataView(buffer);
+
+	// 将浮点数写入缓冲区（32位浮点数，大端模式）
+	view.setFloat32(0, floatNumber, false); // false表示大端模式
+
+	// 将缓冲区转换为字节数组
+	const bytes = [];
+	for (let i = 0; i < 4; i++) {
+		bytes.push(view.getUint8(i).toString(16).padStart(2, '0').toUpperCase());
+	}
+
+	return bytes.join(''); // 输出字节字符串格式
+}
+
+/**
  * 根据输入的通道号计算通道掩码
  * @param {channelIndexArray} 要打开通道编号的数组
  * @returns {chmaskArr} 三组通道掩码
