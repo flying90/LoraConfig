@@ -3,12 +3,26 @@
 		<scroll-view scroll-y="true" class="config_container">
 			<view>
 				<view v-for="(config, index) in commonConfigure" :key="index">
-					<view v-if="index === 1" class="config_cell">
+					<view v-if="index === 0">
+						<view class="config_cell">
+							<text class="config_label">{{config.name}}{{config.unit?`\n(${config.unit})`: ""}}: </text>
+							<uni-easyinput type="number" v-model="config.value" :disabled="!config.editable" class="config_value" @change="cycleChange"></uni-easyinput>
+						</view>
+						<text v-if="!cycleChecked" class="warning">collection cycle verification failed</text>
+					</view>
+					<view v-else-if="index === 1" class="config_cell">
 						<text class="config_label">{{config.name}}{{config.unit?`\n(${config.unit})`: ""}}: </text>
 						<uni-easyinput type="text" v-model="datetime" :disabled="!config.editable" class="config_value"></uni-easyinput>
 						<label>
 							<checkbox :checked="datetimeConfig" />
 						</label>
+					</view>
+					<view v-else-if="index === 2">
+						<view class="config_cell">
+							<text class="config_label">{{config.name}}{{config.unit?`\n(${config.unit})`: ""}}: </text>
+							<uni-easyinput type="number" :value="config.value" :disabled="!config.editable" class="config_value" @change="deviceSNChange"></uni-easyinput>
+						</view>
+						<text v-if="!snChecked" class="warning">device SN verification failed</text>
 					</view>
 					<view v-else-if="index === 3" class="config_cell">
 						<text class="config_label">{{config.name}}{{config.unit?`\n(${config.unit})`: ""}}: </text>
@@ -19,21 +33,30 @@
 							<text class="config_label">{{config.name}}{{config.unit?`\n(${config.unit})`: ""}}: </text>
 							<uni-easyinput type="text" :value="loraChannels" :disabled="!config.editable" class="config_value" @change="loraChannelsChange"></uni-easyinput>
 						</view>
-
 						<text v-if="!loraChannelsChecked" class="warning">channels verification failed</text>
 					</view>
-					<view v-else-if="index === 6" class="config_cell">
-						<text class="config_label">{{config.name}}{{config.unit?`\n(${config.unit})`: ""}}: </text>
-						<uni-easyinput type="text" v-model="devEUI" :disabled="!config.editable" class="config_value"></uni-easyinput>
+					<view v-else-if="index == 5">
+						<view class="config_cell">
+							<text class="config_label">{{config.name}}{{config.unit?`\n(${config.unit})`: ""}}: </text>
+							<uni-easyinput type="number" v-model="config.value" :disabled="!config.editable" class="config_value" @change="fportChange"></uni-easyinput>
+						</view>
+						<text v-if="!fportChecked" class="warning">fport verification failed</text>
 					</view>
-					<view v-else-if="index === 7" class="config_cell">
-						<text class="config_label">{{config.name}}{{config.unit?`\n(${config.unit})`: ""}}: </text>
-						<uni-easyinput type="text" v-model="appKey" :disabled="!config.editable" class="config_value"></uni-easyinput>
+					<view v-else-if="index === 6">
+						<view class="config_cell">
+							<text class="config_label">{{config.name}}{{config.unit?`\n(${config.unit})`: ""}}: </text>
+							<uni-easyinput type="text" :value="devEUI" :disabled="!config.editable" class="config_value" @change="devEUIChange"></uni-easyinput>
+						</view>
+						<text v-if="!devEUIChecked" class="warning">devEUI verification failed</text>
 					</view>
-					<view v-else class="config_cell">
-						<text class="config_label">{{config.name}}{{config.unit?`\n(${config.unit})`: ""}}: </text>
-						<uni-easyinput type="text" v-model="config.value" :disabled="!config.editable" class="config_value"></uni-easyinput>
+					<view v-else-if="index === 7">
+						<view class="config_cell">
+							<text class="config_label">{{config.name}}{{config.unit?`\n(${config.unit})`: ""}}: </text>
+							<uni-easyinput type="text" :value="appKey" :disabled="!config.editable" class="config_value" @change="appKeyChange"></uni-easyinput>
+						</view>
+						<text v-if="!appKeyChecked" class="warning">appKey verification failed</text>
 					</view>
+
 				</view>
 				<view v-if="devName.includes('DWL4')">
 					<view v-for="(config,index) in dwl4Configure" :key="index">
@@ -86,8 +109,13 @@
 	export default {
 		data() {
 			return {
+				cycleChecked: true,
+				snChecked: true,
 				datetimeConfig: false,
 				loraChannelsChecked: true,
+				fportChecked: true,
+				devEUIChecked: true,
+				appKeyChecked: true,
 				commonConfigure: [{
 						name: "Collection Cycle",
 						value: 1,
@@ -163,17 +191,17 @@
 					},
 					{
 						name: "DEVEUI",
-						value_h: "",
-						value_l: "",
+						value_h: "00000000",
+						value_l: "00000000",
 						editable: true,
 						unit: ""
 					},
 					{
 						name: "APPKEY",
-						value_1: "",
-						value_2: "",
-						value_3: "",
-						value_4: "",
+						value_1: "5572404c",
+						value_2: "696e6b4c",
+						value_3: "6f526132",
+						value_4: "30313823",
 						editable: true,
 						unit: ""
 					}
@@ -258,7 +286,11 @@
 				return !bleInfo.ble_connected;
 			},
 			datetime() {
-				return `20${this.commonConfigure[1].date_value} ${this.commonConfigure[1].time_value}`;
+				if (this.commonConfigure[1]) {
+					return `20${this.commonConfigure[1].date_value} ${this.commonConfigure[1].time_value}`;
+				} else {
+					return "";
+				}
 			},
 			loraChannels() {
 				let channels = "";
@@ -273,28 +305,11 @@
 				}
 				return channels;
 			},
-			devEUI: {
-				get() {
-					return `${this.commonConfigure[6].value_h+this.commonConfigure[6].value_l}`;
-				},
-				set(newValue) {
-					let value = newValue.padStart(16, '0');
-					this.commonConfigure[6].value_h = value.slice(0, 8);
-					this.commonConfigure[6].value_l = value.slice(8, 16);
-				}
+			devEUI() {
+				return `${this.commonConfigure[6].value_h+this.commonConfigure[6].value_l}`;
 			},
-			appKey: {
-				get() {
-					return `${this.commonConfigure[7].value_1+this.commonConfigure[7].value_2+this.commonConfigure[7].value_3+this.commonConfigure[7].value_4}`;
-				},
-				set(newValue) {
-					let value = newValue.padStart(32, '0');
-					this.commonConfigure[7].value_1 = value.slice(0, 8);
-					this.commonConfigure[7].value_2 = value.slice(8, 16);
-					this.commonConfigure[7].value_3 = value.slice(16, 24);
-					this.commonConfigure[7].value_4 = value.slice(24, 32);
-				}
-
+			appKey() {
+				return `${this.commonConfigure[7].value_1+this.commonConfigure[7].value_2+this.commonConfigure[7].value_3+this.commonConfigure[7].value_4}`;
 			},
 			devName() {
 				return bleInfo.ble_device ? bleInfo.ble_device.name : "";
@@ -432,7 +447,7 @@
 							duration: 2000
 						})
 					}
-				})
+				});
 			},
 			readConfigure() {
 				this.readCommonConfigure();
@@ -462,54 +477,105 @@
 					"6f526132",
 					"30313823"
 				];
-				for (let i = 0; i < commonConfigData.length; i++) {
-					switch (i) {
-						case 0:
-							commonConfigData[0] = int2ByteStr(this.commonConfigure[0].value);
-							break;
-						case 2:
-							if (this.datetimeConfig) {
-								commonConfigData[1] = this.getCurrentDate();
-								commonConfigData[2] = this.getCurrentTime();
-							} else {
-								commonConfigData[1] = "00000000";
-								commonConfigData[2] = "00000000";
-							}
-							break;
-						case 3:
-							commonConfigData[3] = int2ByteStr(this.commonConfigure[2].value);
-							break;
-						case 7:
-							commonConfigData[7] = int2ByteStr(this.commonConfigure[3].value);
-							break;
-						case 10:
-							let channelsArray = [...this.commonConfigure[4].ch0_31_value.split(','), ...this.commonConfigure[4].ch32_63_value.split(','), ...this.commonConfigure[4].ch64_71_value.split(
-								',')];
-							let mask = chMaskEncode(channelsArray)
-							console.log(mask);
-							commonConfigData[8] = mask.groupA_mask;
-							commonConfigData[9] = mask.groupB_mask;
-							commonConfigData[10] = mask.groupC_mask;
-							break;
-						case 11:
-							commonConfigData[11] = int2ByteStr(this.commonConfigure[5].value);
-							break;
-						case 13:
-							commonConfigData[12] = this.commonConfigure[6].value_h;
-							commonConfigData[13] = this.commonConfigure[6].value_l;
-							break;
-						case 17:
-							commonConfigData[14] = this.commonConfigure[7].value_1;
-							commonConfigData[15] = this.commonConfigure[7].value_2;
-							commonConfigData[16] = this.commonConfigure[7].value_3;
-							commonConfigData[17] = this.commonConfigure[7].value_4;
-							break;
-						default:
-							break;
+				let dataStr = "";
+				if (this.cycleChecked && this.loraChannelsChecked && this.devEUIChecked && this.appKeyChecked && this.fportChecked) {
+					for (let i = 0; i < commonConfigData.length; i++) {
+						switch (i) {
+							case 0:
+								commonConfigData[0] = int2ByteStr(this.commonConfigure[0].value);
+								break;
+							case 2:
+								if (this.datetimeConfig) {
+									commonConfigData[1] = this.getCurrentDate();
+									commonConfigData[2] = this.getCurrentTime();
+								} else {
+									commonConfigData[1] = "00000000";
+									commonConfigData[2] = "00000000";
+								}
+								break;
+							case 3:
+								commonConfigData[3] = int2ByteStr(this.commonConfigure[2].value);
+								break;
+							case 7:
+								commonConfigData[7] = int2ByteStr(this.commonConfigure[3].value);
+								break;
+							case 10:
+								let channelsArray = [...this.commonConfigure[4].ch0_31_value.split(','), ...this.commonConfigure[4].ch32_63_value.split(','), ...this.commonConfigure[4].ch64_71_value.split(',')];
+								let mask = chMaskEncode(channelsArray);
+								console.log(mask);
+								commonConfigData[8] = mask.groupA_mask;
+								commonConfigData[9] = mask.groupB_mask;
+								commonConfigData[10] = mask.groupC_mask;
+								break;
+							case 11:
+								commonConfigData[11] = int2ByteStr(this.commonConfigure[5].value);
+								break;
+							case 13:
+								commonConfigData[12] = this.commonConfigure[6].value_h;
+								commonConfigData[13] = this.commonConfigure[6].value_l;
+								break;
+							case 17:
+								commonConfigData[14] = this.commonConfigure[7].value_1;
+								commonConfigData[15] = this.commonConfigure[7].value_2;
+								commonConfigData[16] = this.commonConfigure[7].value_3;
+								commonConfigData[17] = this.commonConfigure[7].value_4;
+								break;
+							default:
+								break;
+						}
 					}
+					for (let data of commonConfigData) {
+						dataStr += data;
+					}
+					let cmdStr = `01 15 00 01 00 ${commonConfigData.length.toString(16).padStart(4,'0')} ${dataStr}`;
+					console.log(cmdStr);
+					let modbusCmd = getModbusCmdBuf(cmdStr);
+					uni.writeBLECharacteristicValue({
+						deviceId: bleInfo.ble_device.deviceId,
+						serviceId: bleInfo.ble_service.uuid,
+						characteristicId: bleInfo.ble_send_characteristic.uuid,
+						value: modbusCmd,
+						success: (res) => {
+							console.log("通用设置发送成功: " + res.errMsg);
+							setTimeout(() => {
+								if (bleInfo.ble_recv_data) {
+									console.log("ble info " + bleInfo.ble_recv_data);
+									if (crcCheck(bleInfo.ble_recv_data)) {
+										let data = bleInfo.ble_recv_data.slice(6, bleInfo.ble_recv_data.length - 4).match(/.{1,8}/g);
+										console.log(data);
+										if (bleInfo.ble_device.name.includes("DWL4")) {
+											for (let i = 0; i < data.length; i++) {
+												this.dwl4Configure[i + 1].value = byteStr2Int(data[i]);
+											}
+										} else if (bleInfo.ble_device.name.includes("TILT")) {
+											for (let i = 0; i < data.length; i++) {
+												this.tiltConfigure[i + 1].value = byteStr2Int(data[i]);
+											}
+										}
+									} else {
+										bleInfo.ble_recv_data = '';
+									}
+								}
+							}, 2000);
+
+						},
+						fail: (err) => {
+							console.error("读取特殊设置失败: " + err.errMsg);
+							uni.showToast({
+								title: "read failed.",
+								icon: "error",
+								duration: 2000
+							})
+						}
+					});
+				} else {
+					uni.showToast({
+						title: "Incorrect parameters",
+						icon: "error",
+						duration: 2500
+					})
 				}
-				let cmdStr = `01 15 00 01 00 ${this.commonConfigure.length.toString(16).padStart(4,'0')} ${commonConfigData}`;
-				console.log(cmdStr);
+
 
 			},
 			loraChannelsChange(content) {
@@ -527,10 +593,12 @@
 						if (this.commonConfigure[3].value == 90 || this.commonConfigure[3].value == 91) {
 							if (channel > 71) {
 								this.loraChannelsChecked = false;
+								return;
 							}
 						} else {
 							if (channel > 31) {
 								this.loraChannelsChecked = false;
+								return;
 							}
 						}
 						if (0 <= channel && channel <= 31) {
@@ -546,8 +614,60 @@
 					this.commonConfigure[4].ch64_71_value = ch64_71.join(',');
 				}
 			},
+			cycleChange(content) {
+				this.cycleChecked = true;
+				if (content.length < 1) {
+					this.cycleChecked = false;
+					return;
+				}
+				if (content < 1 || content > 1440) {
+					this.cycleChecked = false;
+					return;
+				}
+			},
+			deviceSNChange(content) {
+				this.snChecked = true;
+				if (content < 0 || content > 999999) {
+					this.snChecked = false;
+				}
+			},
+			fportChange(content) {
+				this.fportChecked = true;
+				if (content < 0 || content > 221) {
+					this.fportChecked = false;
+				}
+			},
 			channelChange() {
 				this.readSpecialConfigure();
+			},
+			devEUIChange(content) {
+				const hexRegex = /^[0-9a-fA-F]+$/;
+				this.devEUIChecked = true;
+				if (content.length != 16) {
+					this.devEUIChecked = false;
+					return;
+				}
+				if (!hexRegex.test(content)) {
+					this.devEUIChecked = false;
+					return;
+				}
+				this.commonConfigure[6].value_h = content.slice(0, 8);
+				this.commonConfigure[6].value_l = content.slice(8, 16);
+			},
+			appKeyChange(content) {
+				const hexRegex = /^[0-9a-fA-F]+$/;
+				this.appKeyChecked = true;
+				if (content.length != 32) {
+					this.appKeyChecked = false;
+				}
+				if (!hexRegex.test(content)) {
+					this.appKeyChecked = false;
+					return;
+				}
+				this.commonConfigure[7].value_1 = content.slice(0, 8);
+				this.commonConfigure[7].value_2 = content.slice(8, 16);
+				this.commonConfigure[7].value_3 = content.slice(16, 24);
+				this.commonConfigure[7].value_4 = content.slice(24, 32);
 			}
 		},
 		mounted() {
