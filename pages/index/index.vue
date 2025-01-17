@@ -24,7 +24,13 @@
 
 <script>
 	import bleInfo from "@/common/common"
-	import { ab2hex } from "@/common/utils";
+	import {
+		ab2hex
+	} from "@/common/utils"
+	import {
+		crcCheck,
+		getModbusCmdBuf
+	} from "@/common/modbusRtu"
 	export default {
 		data() {
 			return {
@@ -120,6 +126,42 @@
 				// console.log("蓝牙缓存: " + bleInfo.ble_recv_data);
 			},
 			/**
+			 * 读取数据缓存以防止休眠
+			 */
+			readCount() {
+				bleInfo.ble_recv_data = "";
+				let cmdStr = "01 03 00 00 00 00 01";
+				let modbusCmd = getModbusCmdBuf(cmdStr);
+				uni.writeBLECharacteristicValue({
+					deviceId: bleInfo.ble_device.deviceId,
+					serviceId: bleInfo.ble_service.uuid,
+					characteristicId: bleInfo.ble_send_characteristic.uuid,
+					value: modbusCmd,
+					success: (res) => {
+						console.log("防休眠发送成功: " + res.errMsg);
+						setTimeout(() => {
+							if (bleInfo.ble_recv_data) {
+								console.log("ble info " + bleInfo.ble_recv_data);
+								if (crcCheck(bleInfo.ble_recv_data)) {
+									console.log("防休眠成功");
+								} else {
+									bleInfo.ble_recv_data = '';
+								}
+							}
+						}, 2000);
+
+					},
+					fail: (err) => {
+						console.error("读取特殊设置失败: " + err.errMsg);
+						uni.showToast({
+							title: "read failed.",
+							icon: "error",
+							duration: 2000
+						})
+					}
+				});
+			},
+			/**
 			 * 开始监听特征值
 			 */
 			notify() {
@@ -136,6 +178,10 @@
 						console.log("开启监听成功: " + res.errMsg);
 						bleInfo.ble_connected = true;
 						this.listenValueChange();
+						// 50秒读一次缓存数量以防止设备休眠
+						setInterval(() => {
+							this.readCount();
+						}, 1000 * 50);
 					},
 					fail(err) {
 						uni.hideLoading();

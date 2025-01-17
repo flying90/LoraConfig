@@ -98,8 +98,8 @@
 	import {
 		byteStr2Int,
 		int2ByteStr,
-		chMaskEncode,
-		chMaskDecode
+		calculateChannelMask,
+		parseChannelMask
 	} from "@/common/utils";
 	import bleInfo from "@/common/common"
 	import {
@@ -348,38 +348,53 @@
 									let data = bleInfo.ble_recv_data.slice(6, bleInfo.ble_recv_data.length - 4).match(/.{1,8}/g);
 									console.log(data);
 									for (let i = 0; i < data.length; i++) {
-										if (i === 1) {
-											this.commonConfigure[i].date_value = data[i].slice(-6).match(/.{1,2}/g).join('-');
-										} else if (i === 2) {
-											this.commonConfigure[i - 1].time_value = data[i].slice(-6).match(/.{1,2}/g).join(':');
-										} else if (i === 3) {
-											this.commonConfigure[i - 1].value = byteStr2Int(data[i]);
-										} else if (i === 4 || i === 5 || i === 6) {
-
-										} else if (i === 7) {
-											this.commonConfigure[i - 4].value = byteStr2Int(data[i]);
-										} else if (i === 8) {
-											this.commonConfigure[i - 4].ch0_31_value = chMaskDecode(byteStr2Int(data[i]));
-										} else if (i === 9) {
-											this.commonConfigure[i - 5].ch32_63_value = chMaskDecode(byteStr2Int(data[i]));
-										} else if (i === 10) {
-											this.commonConfigure[i - 6].ch64_71_value = chMaskDecode(byteStr2Int(data[i]));
-										} else if (i === 11) {
-											this.commonConfigure[i - 6].value = byteStr2Int(data[i]);
-										} else if (i === 12) {
-											this.commonConfigure[i - 6].value_h = data[i];
-										} else if (i === 13) {
-											this.commonConfigure[i - 7].value_l = data[i];
-										} else if (i === 14) {
-											this.commonConfigure[i - 7].value_1 = data[i];
-										} else if (i === 15) {
-											this.commonConfigure[i - 8].value_2 = data[i];
-										} else if (i === 16) {
-											this.commonConfigure[i - 9].value_3 = data[i];
-										} else if (i === 17) {
-											this.commonConfigure[i - 10].value_4 = data[i];
-										} else {
-											this.commonConfigure[i].value = byteStr2Int(data[i]);
+										switch (i) {
+											case 0:
+												this.commonConfigure[0].value = byteStr2Int(data[0]);
+												break;
+											case 2:
+												this.commonConfigure[1].date_value = data[1].slice(-6).match(/.{1,2}/g).join('-');
+												this.commonConfigure[1].time_value = data[2].slice(-6).match(/.{1,2}/g).join(':');
+												break;
+											case 3:
+												this.commonConfigure[2].value = byteStr2Int(data[3]);
+												break;
+											case 7:
+												this.commonConfigure[3].value = byteStr2Int(data[7]);
+												break;
+											case 10:
+												const channels = parseChannelMask(data[8] + data[9] + data[10]);
+												let ch0_31 = [];
+												let ch32_63 = [];
+												let ch64_71 = [];
+												for (const channel of channels) {
+													if (0 <= channel && channel <= 31) {
+														ch0_31.push(channel);
+													} else if (0 <= channel && channel <= 31) {
+														ch32_63.push(channel);
+													} else {
+														ch64_71.push(channel);
+													}
+												}
+												this.commonConfigure[4].ch0_31_value = ch0_31.join(',');
+												this.commonConfigure[4].ch32_63_value = ch32_63.join(',');
+												this.commonConfigure[4].ch64_71_value = ch64_71.join(',');
+												break;
+											case 11:
+												this.commonConfigure[5].value = byteStr2Int(data[11]);
+												break;
+											case 13:
+												this.commonConfigure[6].value_h = data[12];
+												this.commonConfigure[6].value_l = data[13];
+												break;
+											case 17:
+												this.commonConfigure[7].value_1 = data[14];
+												this.commonConfigure[7].value_2 = data[15];
+												this.commonConfigure[7].value_3 = data[16];
+												this.commonConfigure[7].value_4 = data[17];
+												break;
+											default:
+												break;
 										}
 									}
 								} else {
@@ -455,7 +470,7 @@
 					this.readSpecialConfigure();
 				}, 3000);
 			},
-			commitConfigure() {
+			commitCommonConfigure() {
 				bleInfo.ble_recv_data = "";
 				let commonConfigData = [
 					"0000001e",
@@ -500,9 +515,12 @@
 								commonConfigData[7] = int2ByteStr(this.commonConfigure[3].value);
 								break;
 							case 10:
-								let channelsArray = [...this.commonConfigure[4].ch0_31_value.split(','), ...this.commonConfigure[4].ch32_63_value.split(','), ...this.commonConfigure[4].ch64_71_value.split(',')];
-								let mask = chMaskEncode(channelsArray);
-								console.log(mask);
+								let channelsArray = [...this.commonConfigure[4].ch0_31_value.split(','), ...this.commonConfigure[4].ch32_63_value.split(','), ...this.commonConfigure[4].ch64_71_value.split(',')]
+									.filter(item => item !== "")
+									.map(Number);
+								console.log("channelsArray --->", channelsArray);
+								const mask = calculateChannelMask(channelsArray);
+								console.log("mask --->", mask);
 								commonConfigData[8] = mask.groupA_mask;
 								commonConfigData[9] = mask.groupB_mask;
 								commonConfigData[10] = mask.groupC_mask;
@@ -543,15 +561,6 @@
 									if (crcCheck(bleInfo.ble_recv_data)) {
 										let data = bleInfo.ble_recv_data.slice(6, bleInfo.ble_recv_data.length - 4).match(/.{1,8}/g);
 										console.log(data);
-										if (bleInfo.ble_device.name.includes("DWL4")) {
-											for (let i = 0; i < data.length; i++) {
-												this.dwl4Configure[i + 1].value = byteStr2Int(data[i]);
-											}
-										} else if (bleInfo.ble_device.name.includes("TILT")) {
-											for (let i = 0; i < data.length; i++) {
-												this.tiltConfigure[i + 1].value = byteStr2Int(data[i]);
-											}
-										}
 									} else {
 										bleInfo.ble_recv_data = '';
 									}
@@ -575,8 +584,51 @@
 						duration: 2500
 					})
 				}
-
-
+			},
+			commitSpecialConfigure() {
+				bleInfo.ble_recv_data = "";
+				let cmdStr = "";
+				if (bleInfo.ble_device.name.includes("DWL4")) {
+					cmdStr =
+						`01 15 00 01 32 00 05 ${Number(this.dwl4Configure[0].value).toString(16).padStart(8,'0')} ${Number(this.dwl4Configure[1].value).toString(16).padStart(8,'0')} ${Number(this.dwl4Configure[2].value).toString(16).padStart(8,'0')} ${Number(this.dwl4Configure[3].value).toString(16).padStart(8,'0')} ${Number(this.dwl4Configure[4].value).toString(16).padStart(8,'0')}`;
+				} else if (bleInfo.ble_device.name.includes("DWL4")) {
+					cmdStr =
+						`01 15 00 01 32 00 05 ${Number(this.dwl4Configure[0].value).toString(16).padStart(8,'0')} ${Number(this.dwl4Configure[1].value).toString(16).padStart(8,'0')} ${Number(this.dwl4Configure[2].value).toString(16).padStart(8,'0')} ${Number(this.dwl4Configure[3].value).toString(16).padStart(8,'0')}`;
+				}
+				console.log("special config --->", cmdStr);
+				let modbusCmd = getModbusCmdBuf(cmdStr);
+				uni.writeBLECharacteristicValue({
+					deviceId: bleInfo.ble_device.deviceId,
+					serviceId: bleInfo.ble_service.uuid,
+					characteristicId: bleInfo.ble_send_characteristic.uuid,
+					value: modbusCmd,
+					success: (res) => {
+						console.log("读取数据成功: " + res.errMsg);
+						setTimeout(() => {
+							if (bleInfo.ble_recv_data) {
+								console.log("ble info " + bleInfo.ble_recv_data);
+								if (crcCheck(bleInfo.ble_recv_data)) {
+									let data = bleInfo.ble_recv_data.slice(6, bleInfo.ble_recv_data.length - 4).match(/.{1,8}/g);
+									console.log(data);
+									uni.showToast({
+										title: "success."
+									});
+								} else {
+									bleInfo.ble_recv_data = '';
+								}
+							}
+						}, 3000);
+					},
+					fail: (err) => {
+						console.error("读取设置失败: " + err.errMsg);
+					}
+				});
+			},
+			commitConfigure() {
+				this.commitCommonConfigure();
+				setTimeout(() => {
+					this.commitSpecialConfigure();
+				}, 3000);
 			},
 			loraChannelsChange(content) {
 				if (content) {
@@ -591,12 +643,12 @@
 						let channel = parseInt(element);
 						this.loraChannelsChecked = true;
 						if (this.commonConfigure[3].value == 90 || this.commonConfigure[3].value == 91) {
-							if (channel > 71) {
+							if (channel > 71 || channel < 0) {
 								this.loraChannelsChecked = false;
 								return;
 							}
 						} else {
-							if (channel > 31) {
+							if (channel > 31 || channel < 0) {
 								this.loraChannelsChecked = false;
 								return;
 							}
@@ -612,6 +664,10 @@
 					this.commonConfigure[4].ch0_31_value = ch0_31.join(',');
 					this.commonConfigure[4].ch32_63_value = ch32_63.join(',');
 					this.commonConfigure[4].ch64_71_value = ch64_71.join(',');
+				} else {
+					this.commonConfigure[4].ch0_31_value = "";
+					this.commonConfigure[4].ch32_63_value = "";
+					this.commonConfigure[4].ch64_71_value = "";
 				}
 			},
 			cycleChange(content) {

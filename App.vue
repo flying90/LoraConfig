@@ -1,15 +1,15 @@
 <script>
 	export default {
 		onLaunch: function() {
-			console.log('App Launch')
+
 		},
 		onShow: function() {
-			console.log('App Show')
+
 			const sysSetting = uni.getSystemSetting();
 			if (sysSetting.bluetoothEnabled) {
 				uni.openBluetoothAdapter({
 					success: e => {
-						console.log("蓝牙初始化成功");
+
 					},
 					fail: (e) => {
 						console.log("蓝牙初始化失败，错误码：" + (e.errCode || e.errMsg));
@@ -28,6 +28,7 @@
 	@import '@/uni_modules/uni-scss/index.scss';
 	/* #ifndef APP-NVUE */
 	@import '@/static/customicons.css';
+
 	// 设置整个项目的背景色
 	page {
 		background-color: #f5f5f5;
