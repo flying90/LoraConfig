@@ -5,17 +5,6 @@
 		},
 		onShow: function() {
 
-			const sysSetting = uni.getSystemSetting();
-			if (sysSetting.bluetoothEnabled) {
-				uni.openBluetoothAdapter({
-					success: e => {
-
-					},
-					fail: (e) => {
-						console.log("蓝牙初始化失败，错误码：" + (e.errCode || e.errMsg));
-					}
-				})
-			}
 		},
 		onHide: function() {
 			console.log('App Hide')

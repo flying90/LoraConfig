@@ -17,7 +17,8 @@
 			</view>
 		</scroll-view>
 		<view class="srh_btn">
-			<button type="primary" @click="startBluetoothDevicesDiscovery">Start Scan</button>
+			<button v-if="!bleConnectFlag" type="primary" :loading="scanFlag" @click="startBluetoothDevicesDiscovery">Start Scan</button>
+			<button v-else-if="bleConnectFlag" type="warn" @click="closeBLEConnection">Disconnect</button>
 		</view>
 	</view>
 </template>
@@ -29,47 +30,63 @@
 	} from "@/common/utils"
 	import {
 		crcCheck,
-		getModbusCmdBuf
+		getModbusCmdBuf,
 	} from "@/common/modbusRtu"
 	export default {
 		data() {
 			return {
 				bleDevList: [],
+				scanFlag: false,
+				readTimer: null,
+				isBLEListenerBound: false,
 			}
 		},
 		computed: {
-
+			bleConnectFlag() {
+				return bleInfo.ble_connected;
+			}
 		},
 		methods: {
 			/**
 			 * 开始搜索蓝牙设备
 			 */
 			startBluetoothDevicesDiscovery() {
-				uni.startBluetoothDevicesDiscovery({
-					powerLevel: "high",
-					services: ["0000FFF1"],
-					success: e => {
-						console.log('开始搜索蓝牙设备:' + e.errMsg);
-						this.searchLoad = true;
-						this.onBluetoothDeviceFound();
-					},
-					fail: e => {
-						console.log('搜索蓝牙设备失败，错误码：' + e.errCode);
-						if (e.errCode !== 0) {
-							initTypes(e.errCode);
+				const sysSetting = uni.getSystemSetting();
+				if (sysSetting.bluetoothEnabled) {
+					uni.openBluetoothAdapter({
+						success: e => {
+							console.log("蓝牙初始化成功");
+							uni.startBluetoothDevicesDiscovery({
+								powerLevel: "high",
+								services: ["FFF0"],
+								success: e => {
+									console.log('开始搜索蓝牙设备:' + e.errMsg);
+									this.scanFlag = true;
+									this.onBluetoothDeviceFound();
+								},
+								fail: e => {
+									console.log('搜索蓝牙设备失败，错误码：' + e.errCode);
+									if (e.errCode !== 0) {
+										initTypes(e.errCode);
+									}
+								}
+							});
+						},
+						fail: (e) => {
+							console.log("蓝牙初始化失败，错误码：" + (e.errCode || e.errMsg));
 						}
-					}
-				});
+					})
+				}
 			},
 			/**
 			 * 停止搜索蓝牙设备
 			 */
 			stopBluetoothDevicesDiscovery() {
-				if (this.searchLoad) {
+				if (this.scanFlag) {
 					uni.stopBluetoothDevicesDiscovery({
 						success: e => {
 							console.log('停止搜索蓝牙设备:' + e.errMsg);
-							this.searchLoad = false;
+							this.scanFlag = false;
 						},
 						fail: e => {
 							console.log('停止搜索蓝牙设备失败，错误码：' + e.errCode);
@@ -114,16 +131,12 @@
 					}
 				});
 			},
-			/**
-			 * 监听处理特征值数据
-			 */
-			listenValueChange() {
-				uni.onBLECharacteristicValueChange(res => {
-					let resHex = ab2hex(res.value);
-					// console.log("解析后数据: " + resHex);
-					bleInfo.ble_recv_data += resHex;
-				});
-				// console.log("蓝牙缓存: " + bleInfo.ble_recv_data);
+			/***/
+			handleBLEDataChange(res) {
+				let resHex = ab2hex(res.value);
+				// console.log("解析后数据: " + resHex);
+				bleInfo.ble_recv_data += resHex;
+				uni.$emit("dataArrive");
 			},
 			/**
 			 * 读取数据缓存以防止休眠
@@ -148,16 +161,11 @@
 									bleInfo.ble_recv_data = '';
 								}
 							}
-						}, 2000);
+						}, 500);
 
 					},
 					fail: (err) => {
-						console.error("读取特殊设置失败: " + err.errMsg);
-						uni.showToast({
-							title: "read failed.",
-							icon: "error",
-							duration: 2000
-						})
+						console.error("防休眠失败: " + err.errMsg);
 					}
 				});
 			},
@@ -177,9 +185,12 @@
 						});
 						console.log("开启监听成功: " + res.errMsg);
 						bleInfo.ble_connected = true;
-						this.listenValueChange();
+						if (!this.isBLEListenerBound) {
+							uni.onBLECharacteristicValueChange(this.handleBLEDataChange);
+							this.isBLEListenerBound = true;
+						}
 						// 50秒读一次缓存数量以防止设备休眠
-						setInterval(() => {
+						this.readTimer = setInterval(() => {
 							this.readCount();
 						}, 1000 * 50);
 					},
@@ -247,6 +258,14 @@
 			 * 处理设备连接
 			 */
 			handleConnect(device) {
+				if (bleInfo.ble_connected) {
+					uni.showToast({
+						title: 'Connected.',
+						icon: 'error',
+						duration: 2000
+					});
+					return;
+				}
 				this.stopBluetoothDevicesDiscovery();
 				bleInfo.ble_device = device;
 				uni.showLoading({
@@ -285,14 +304,18 @@
 				uni.closeBLEConnection({
 					deviceId,
 					success: res => {
-						console.log('断开低功耗蓝牙成功:' + res.errMsg);
-						this.connectBtnStatus = false;
-						this.connectedDevice = '未连接';
-						bleInfo.ble_device = null;
-						bleInfo.ble_service = null;
-						bleInfo.ble_recv_characteristic = null;
-						bleInfo.ble_send_characteristic = null;
+
 						bleInfo.ble_connected = false;
+						clearInterval(this.readTimer);
+						console.log('断开低功耗蓝牙成功:' + res.errMsg);
+						// uni.closeBluetoothAdapter({
+						// 	success: (res) => {
+						// 		console.log("释放适配器成功");
+						// 	},
+						// 	fail: (res) => {
+						// 		console.log("释放适配器失败");
+						// 	}
+						// })
 					},
 					fail: e => {
 						console.log('断开低功耗蓝牙失败，错误码：' + e.errCode);
@@ -312,6 +335,7 @@
 							confirmText: "Confirm"
 						});
 						bleInfo.ble_connected = false;
+						clearInterval(this.readTimer);
 					}
 				});
 			}

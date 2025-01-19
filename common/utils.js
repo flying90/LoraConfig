@@ -76,7 +76,7 @@ export function byteStr2Int(byteStr) {
  * @returns {string} byteStr: 4字节ABCD顺序的整型字节码
  */
 export function int2ByteStr(intNumber) {
-	return ("00000000" + Number(intNumber).toString(16)).slice(-8);
+	return ("00000000" + parseInt(intNumber).toString(16)).slice(-8);
 }
 
 /**
@@ -108,7 +108,7 @@ export function float2ByteStr(floatNumber) {
 export function calculateChannelMask(channels) {
 	// 初始化 16 字节的掩码，每个字节用 0 表示
 	const mask = new Array(16).fill(0);
-	console.log(mask, '-', channels);
+	// console.log(mask, '-', channels);
 	channels.forEach(channel => {
 		if (channel < 0 || channel > 71) {
 			throw new Error(`频道编号 ${channel} 超出范围 (0-71)`);

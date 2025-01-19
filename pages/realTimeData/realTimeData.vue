@@ -164,82 +164,289 @@
 					characteristicId: bleInfo.ble_send_characteristic.uuid,
 					value: modbusCmd,
 					success: (res) => {
-						console.log("读取数据成功: " + res.errMsg);
-						setTimeout(() => {
+						// console.log("读取数据成功: " + res.errMsg);
+						uni.$once("dataArrive", () => {
 							if (bleInfo.ble_recv_data) {
 								// console.log("ble info " + bleInfo.ble_recv_data);
 								if (crcCheck(bleInfo.ble_recv_data)) {
 									//0103 54 000001c3 0000000a 0003a982 00000144 45cccc00 4479f99a 45cccc00 4479f99a 45cccc00 4479f99a 45cccc00 4479f99a
 									//41c9c4c4 42024aa6 446430d8 41f00000 3f99999a 00000000 00000000 00000000 c2340000 6610
 									let data = bleInfo.ble_recv_data.slice(6, bleInfo.ble_recv_data.length - 4).match(/.{1,8}/g);
-									console.log(data);
+									// console.log(data);
 									if (bleInfo.ble_device.name.includes("DWL4")) {
 										for (let i = 0; i < data.length; i++) {
-											if (i < 4) {
-												if (i === 1) {
+											switch (i) {
+												case 0:
+													this.commonChannels[0].value = byteStr2Int(data[0]);
+													break;
+												case 1:
 													switch (byteStr2Int(data[i])) {
 														case 10:
-															this.commonChannels[i].value = "DWL4"
+															this.commonChannels[i].value = "DWL4";
 															break;
 														case 11:
-															this.commonChannels[i].value = "TILT"
+															this.commonChannels[i].value = "TILT";
 															break;
 														default:
 															break;
 													}
-												} else if (i === 3) {
-													this.commonChannels[i].value = byteStr2Int(data[i]) / 100;
-												} else {
-													this.commonChannels[i].value = byteStr2Int(data[i]);
-												}
-											} else if (i < 12) {
-												this.dwl4Channels[i - 4].value = byteStr2Float(data[i]).toFixed(1);
-											} else if (i < 14) {
-												this.commonChannels[i - 8].value = byteStr2Float(data[i]).toFixed(1);
-											} else if (i > 18) {
-												if (i === 19) {
-													this.commonChannels[i - 12].value = (byteStr2Float(data[i]).toFixed(0) == 1) ? "Joined" : "Not Joined";
-												} else {
-													this.commonChannels[i - 12].value = byteStr2Float(data[i]).toFixed(1);
-												}
+													break;
+												case 2:
+													this.commonChannels[2].value = byteStr2Int(data[2]);
+													break;
+												case 3:
+													this.commonChannels[3].value = byteStr2Int(data[3]) / 100;
+													break;
+												case 4:
+													this.dwl4Channels[0].value = byteStr2Float(data[4]).toFixed(1);
+													break;
+												case 5:
+													this.dwl4Channels[1].value = byteStr2Float(data[5]).toFixed(1);
+													break;
+												case 6:
+													this.dwl4Channels[2].value = byteStr2Float(data[6]).toFixed(1);
+													break;
+												case 7:
+													this.dwl4Channels[3].value = byteStr2Float(data[7]).toFixed(1);
+													break;
+												case 8:
+													this.dwl4Channels[4].value = byteStr2Float(data[8]).toFixed(1);
+													break;
+												case 9:
+													this.dwl4Channels[5].value = byteStr2Float(data[9]).toFixed(1);
+													break;
+												case 10:
+													this.dwl4Channels[6].value = byteStr2Float(data[10]).toFixed(1);
+													break;
+												case 11:
+													this.dwl4Channels[7].value = byteStr2Float(data[11]).toFixed(1);
+													break;
+												case 12:
+													this.commonChannels[4].value = byteStr2Float(data[12]).toFixed(1);
+													break;
+												case 13:
+													this.commonChannels[5].value = byteStr2Float(data[13]).toFixed(1);
+													break;
+												case 14:
+													this.commonChannels[6].value = byteStr2Float(data[14]).toFixed(1);
+													break;
+												case 19:
+													this.commonChannels[7].value = (byteStr2Float(data[19]).toFixed(0) == 1) ? "Joined" : "Not Joined";
+													break;
+												case 20:
+													this.commonChannels[8].value = byteStr2Float(data[20]).toFixed(1);
+													break;
+												default:
+													// 默认处理
+													break;
 											}
 										}
 									} else if (bleInfo.ble_device.name.includes("TILT")) {
 										for (let i = 0; i < data.length; i++) {
-											if (i < 4) {
-												if (i === 3) {
-													this.commonChannels[i].value = byteStr2Int(data[i]) / 100;
-												} else {
-													this.commonChannels[i].value = byteStr2Int(data[i]);
-												}
-											} else if (i < 12) {
-
-											} else if (i < 14) {
-												this.commonChannels[i - 8].value = byteStr2Float(data[i]).toFixed(1);
-											} else if (i > 18) {
-												if (i === 19) {
-													this.commonChannels[i - 12].value = (byteStr2Float(data[i]).toFixed(0) == 1) ? "Joined" : "Not Joined";
-												} else {
-													this.commonChannels[i - 12].value = byteStr2Float(data[i]).toFixed(1);
-												}
+											switch (i) {
+												case 0:
+													this.commonChannels[0].value = byteStr2Int(data[0]);
+													break;
+												case 1:
+													switch (byteStr2Int(data[i])) {
+														case 10:
+															this.commonChannels[i].value = "DWL4";
+															break;
+														case 11:
+															this.commonChannels[i].value = "TILT";
+															break;
+														default:
+															break;
+													}
+													break;
+												case 2:
+													this.commonChannels[2].value = byteStr2Int(data[2]);
+													break;
+												case 3:
+													this.commonChannels[3].value = byteStr2Int(data[3]) / 100;
+													break;
+												case 4:
+													this.tiltChannels[0].value = byteStr2Float(data[4]).toFixed(1);
+													break;
+												case 5:
+													this.tiltChannels[1].value = byteStr2Float(data[5]).toFixed(1);
+													break;
+												case 6:
+													this.tiltChannels[2].value = byteStr2Float(data[6]).toFixed(1);
+													break;
+												case 12:
+													this.commonChannels[4].value = byteStr2Float(data[12]).toFixed(1);
+													break;
+												case 13:
+													this.commonChannels[5].value = byteStr2Float(data[13]).toFixed(1);
+													break;
+												case 14:
+													this.commonChannels[6].value = byteStr2Float(data[14]).toFixed(1);
+													break;
+												case 19:
+													this.commonChannels[7].value = (byteStr2Float(data[19]).toFixed(0) == 1) ? "Joined" : "Not Joined";
+													break;
+												case 20:
+													this.commonChannels[8].value = byteStr2Float(data[20]).toFixed(1);
+													break;
+												default:
+													// 默认处理
+													break;
 											}
 										}
+										uni.showToast({
+											title: "success."
+										});
+									} else {
+										bleInfo.ble_recv_data = '';
 									}
-									uni.showToast({
-										title: "success."
-									});
-								} else {
-									bleInfo.ble_recv_data = '';
 								}
 							}
-						}, 3000);
-
+						});
+						// setTimeout(() => {
+						// 	if (bleInfo.ble_recv_data) {
+						// 		// console.log("ble info " + bleInfo.ble_recv_data);
+						// 		if (crcCheck(bleInfo.ble_recv_data)) {
+						// 			//0103 54 000001c3 0000000a 0003a982 00000144 45cccc00 4479f99a 45cccc00 4479f99a 45cccc00 4479f99a 45cccc00 4479f99a
+						// 			//41c9c4c4 42024aa6 446430d8 41f00000 3f99999a 00000000 00000000 00000000 c2340000 6610
+						// 			let data = bleInfo.ble_recv_data.slice(6, bleInfo.ble_recv_data.length - 4).match(/.{1,8}/g);
+						// 			console.log(data);
+						// 			if (bleInfo.ble_device.name.includes("DWL4")) {
+						// 				for (let i = 0; i < data.length; i++) {
+						// 					switch (i) {
+						// 						case 0:
+						// 							this.commonChannels[0].value = byteStr2Int(data[0]);
+						// 							break;
+						// 						case 1:
+						// 							switch (byteStr2Int(data[i])) {
+						// 								case 10:
+						// 									this.commonChannels[i].value = "DWL4";
+						// 									break;
+						// 								case 11:
+						// 									this.commonChannels[i].value = "TILT";
+						// 									break;
+						// 								default:
+						// 									break;
+						// 							}
+						// 							break;
+						// 						case 2:
+						// 							this.commonChannels[2].value = byteStr2Int(data[2]);
+						// 							break;
+						// 						case 3:
+						// 							this.commonChannels[3].value = byteStr2Int(data[3]) / 100;
+						// 							break;
+						// 						case 4:
+						// 							this.dwl4Channels[0].value = byteStr2Float(data[4]).toFixed(1);
+						// 							break;
+						// 						case 5:
+						// 							this.dwl4Channels[1].value = byteStr2Float(data[5]).toFixed(1);
+						// 							break;
+						// 						case 6:
+						// 							this.dwl4Channels[2].value = byteStr2Float(data[6]).toFixed(1);
+						// 							break;
+						// 						case 7:
+						// 							this.dwl4Channels[3].value = byteStr2Float(data[7]).toFixed(1);
+						// 							break;
+						// 						case 8:
+						// 							this.dwl4Channels[4].value = byteStr2Float(data[8]).toFixed(1);
+						// 							break;
+						// 						case 9:
+						// 							this.dwl4Channels[5].value = byteStr2Float(data[9]).toFixed(1);
+						// 							break;
+						// 						case 10:
+						// 							this.dwl4Channels[6].value = byteStr2Float(data[10]).toFixed(1);
+						// 							break;
+						// 						case 11:
+						// 							this.dwl4Channels[7].value = byteStr2Float(data[11]).toFixed(1);
+						// 							break;
+						// 						case 12:
+						// 							this.commonChannels[4].value = byteStr2Float(data[12]).toFixed(1);
+						// 							break;
+						// 						case 13:
+						// 							this.commonChannels[5].value = byteStr2Float(data[13]).toFixed(1);
+						// 							break;
+						// 						case 14:
+						// 							this.commonChannels[6].value = byteStr2Float(data[14]).toFixed(1);
+						// 							break;
+						// 						case 19:
+						// 							this.commonChannels[7].value = (byteStr2Float(data[19]).toFixed(0) == 1) ? "Joined" : "Not Joined";
+						// 							break;
+						// 						case 20:
+						// 							this.commonChannels[8].value = byteStr2Float(data[20]).toFixed(1);
+						// 							break;
+						// 						default:
+						// 							// 默认处理
+						// 							break;
+						// 					}
+						// 				}
+						// 			} else if (bleInfo.ble_device.name.includes("TILT")) {
+						// 				for (let i = 0; i < data.length; i++) {
+						// 					switch (i) {
+						// 						case 0:
+						// 							this.commonChannels[0].value = byteStr2Int(data[0]);
+						// 							break;
+						// 						case 1:
+						// 							switch (byteStr2Int(data[i])) {
+						// 								case 10:
+						// 									this.commonChannels[i].value = "DWL4";
+						// 									break;
+						// 								case 11:
+						// 									this.commonChannels[i].value = "TILT";
+						// 									break;
+						// 								default:
+						// 									break;
+						// 							}
+						// 							break;
+						// 						case 2:
+						// 							this.commonChannels[2].value = byteStr2Int(data[2]);
+						// 							break;
+						// 						case 3:
+						// 							this.commonChannels[3].value = byteStr2Int(data[3]) / 100;
+						// 							break;
+						// 						case 4:
+						// 							this.tiltChannels[0].value = byteStr2Float(data[4]).toFixed(1);
+						// 							break;
+						// 						case 5:
+						// 							this.tiltChannels[1].value = byteStr2Float(data[5]).toFixed(1);
+						// 							break;
+						// 						case 6:
+						// 							this.tiltChannels[2].value = byteStr2Float(data[6]).toFixed(1);
+						// 							break;
+						// 						case 12:
+						// 							this.commonChannels[4].value = byteStr2Float(data[12]).toFixed(1);
+						// 							break;
+						// 						case 13:
+						// 							this.commonChannels[5].value = byteStr2Float(data[13]).toFixed(1);
+						// 							break;
+						// 						case 14:
+						// 							this.commonChannels[6].value = byteStr2Float(data[14]).toFixed(1);
+						// 							break;
+						// 						case 19:
+						// 							this.commonChannels[7].value = (byteStr2Float(data[19]).toFixed(0) == 1) ? "Joined" : "Not Joined";
+						// 							break;
+						// 						case 20:
+						// 							this.commonChannels[8].value = byteStr2Float(data[20]).toFixed(1);
+						// 							break;
+						// 						default:
+						// 							// 默认处理
+						// 							break;
+						// 					}
+						// 				}
+						// 				uni.showToast({
+						// 					title: "success."
+						// 				});
+						// 			} else {
+						// 				bleInfo.ble_recv_data = '';
+						// 			}
+						// 		}
+						// 	}
+						// }, 3000);
 					},
 					fail: (err) => {
 						console.error("读取设置失败: " + err.errMsg);
 					}
-				})
-			},
+				});
+			}
 		}
 	}
 </script>
