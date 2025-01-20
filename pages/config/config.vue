@@ -31,7 +31,7 @@
 					<view v-else-if="index === 4">
 						<view class="config_cell">
 							<text class="config_label">{{config.name}}{{config.unit?`\n(${config.unit})`: ""}}: </text>
-							<uni-easyinput type="text" :value="loraChannels" :disabled="!config.editable" class="config_value" @change="loraChannelsChange"></uni-easyinput>
+							<uni-easyinput type="text" :value="loraChannels" :disabled="!config.editable" class="config_value" @change="loraChannelsChange" @clear="loraChannelsClear"></uni-easyinput>
 						</view>
 						<text v-if="!loraChannelsChecked" class="warning">channels verification failed</text>
 					</view>
@@ -88,6 +88,7 @@
 	<view class="sb_btn">
 		<view class="btn_group">
 			<button type="primary" :disabled="btnDisabled" @click="readConfigure">Read</button>
+			<!-- <button type="primary" @click="test">Read</button> -->
 			<!-- <button type="primary" @click="commitConfigure">Submit</button> -->
 			<button type="primary" :disabled="btnDisabled" @click="commitConfigure">Submit</button>
 		</view>
@@ -308,10 +309,10 @@
 				return channels;
 			},
 			devEUI() {
-				return `${this.commonConfigure[6].value_h+this.commonConfigure[6].value_l}`;
+				return `${this.commonConfigure[6].value_h}${this.commonConfigure[6].value_l}`;
 			},
 			appKey() {
-				return `${this.commonConfigure[7].value_1+this.commonConfigure[7].value_2+this.commonConfigure[7].value_3+this.commonConfigure[7].value_4}`;
+				return `${this.commonConfigure[7].value_1}${this.commonConfigure[7].value_2+this.commonConfigure[7].value_3}${this.commonConfigure[7].value_4}`;
 			},
 			devName() {
 				return bleInfo.ble_device ? bleInfo.ble_device.name : "";
@@ -349,7 +350,7 @@
 								// console.log("ble info " + bleInfo.ble_recv_data);
 								if (crcCheck(bleInfo.ble_recv_data)) {
 									let data = bleInfo.ble_recv_data.slice(6, bleInfo.ble_recv_data.length - 4).match(/.{1,8}/g);
-									// console.log(data);
+									// console.log("通用设置: ", data);
 									for (let i = 0; i < data.length; i++) {
 										switch (i) {
 											case 0:
@@ -400,76 +401,16 @@
 												break;
 										}
 									}
-									uni.$emit("readCommonConfigOk");
+									setTimeout(() => {
+										uni.$emit("readCommonConfigOk");
+									}, 100);
+
 								} else {
 									bleInfo.ble_recv_data = '';
 								}
 							}
 							// console.log("通用设置: ", this.commonConfigure);
 						});
-						// setTimeout(() => {
-						// 	if (bleInfo.ble_recv_data) {
-						// 		console.log("ble info " + bleInfo.ble_recv_data);
-						// 		if (crcCheck(bleInfo.ble_recv_data)) {
-						// 			let data = bleInfo.ble_recv_data.slice(6, bleInfo.ble_recv_data.length - 4).match(/.{1,8}/g);
-						// 			console.log(data);
-						// 			for (let i = 0; i < data.length; i++) {
-						// 				switch (i) {
-						// 					case 0:
-						// 						this.commonConfigure[0].value = byteStr2Int(data[0]);
-						// 						break;
-						// 					case 2:
-						// 						this.commonConfigure[1].date_value = data[1].slice(-6).match(/.{1,2}/g).join('-');
-						// 						this.commonConfigure[1].time_value = data[2].slice(-6).match(/.{1,2}/g).join(':');
-						// 						break;
-						// 					case 3:
-						// 						this.commonConfigure[2].value = byteStr2Int(data[3]);
-						// 						break;
-						// 					case 7:
-						// 						this.commonConfigure[3].value = byteStr2Int(data[7]);
-						// 						break;
-						// 					case 10:
-						// 						const channels = parseChannelMask(data[8] + data[9] + data[10]);
-						// 						let ch0_31 = [];
-						// 						let ch32_63 = [];
-						// 						let ch64_71 = [];
-						// 						for (const channel of channels) {
-						// 							if (0 <= channel && channel <= 31) {
-						// 								ch0_31.push(channel);
-						// 							} else if (0 <= channel && channel <= 31) {
-						// 								ch32_63.push(channel);
-						// 							} else {
-						// 								ch64_71.push(channel);
-						// 							}
-						// 						}
-						// 						this.commonConfigure[4].ch0_31_value = ch0_31.join(',');
-						// 						this.commonConfigure[4].ch32_63_value = ch32_63.join(',');
-						// 						this.commonConfigure[4].ch64_71_value = ch64_71.join(',');
-						// 						break;
-						// 					case 11:
-						// 						this.commonConfigure[5].value = byteStr2Int(data[11]);
-						// 						break;
-						// 					case 13:
-						// 						this.commonConfigure[6].value_h = data[12];
-						// 						this.commonConfigure[6].value_l = data[13];
-						// 						break;
-						// 					case 17:
-						// 						this.commonConfigure[7].value_1 = data[14];
-						// 						this.commonConfigure[7].value_2 = data[15];
-						// 						this.commonConfigure[7].value_3 = data[16];
-						// 						this.commonConfigure[7].value_4 = data[17];
-						// 						break;
-						// 					default:
-						// 						break;
-						// 				}
-						// 			}
-						// 		} else {
-						// 			bleInfo.ble_recv_data = '';
-						// 		}
-						// 	}
-						// 	console.log("通用设置: ", this.commonConfigure);
-						// }, 2000);
-
 					},
 					fail: (err) => {
 						console.error("读取通用设置失败: " + err.errMsg);
@@ -519,27 +460,6 @@
 								}
 							}
 						});
-						// setTimeout(() => {
-						// 	if (bleInfo.ble_recv_data) {
-						// 		console.log("ble info " + bleInfo.ble_recv_data);
-						// 		if (crcCheck(bleInfo.ble_recv_data)) {
-						// 			let data = bleInfo.ble_recv_data.slice(6, bleInfo.ble_recv_data.length - 4).match(/.{1,8}/g);
-						// 			console.log(data);
-						// 			if (bleInfo.ble_device.name.includes("DWL4")) {
-						// 				for (let i = 0; i < data.length; i++) {
-						// 					this.dwl4Configure[i + 1].value = byteStr2Int(data[i]);
-						// 				}
-						// 			} else if (bleInfo.ble_device.name.includes("TILT")) {
-						// 				for (let i = 0; i < data.length; i++) {
-						// 					this.tiltConfigure[i + 1].value = byteStr2Int(data[i]);
-						// 				}
-						// 			}
-						// 		} else {
-						// 			bleInfo.ble_recv_data = '';
-						// 		}
-						// 	}
-						// }, 2000);
-
 					},
 					fail: (err) => {
 						console.error("读取特殊设置失败: " + err.errMsg);
@@ -552,13 +472,19 @@
 				});
 			},
 			readConfigure() {
+				this.commonConfigure[4].ch0_31_value = "";
+				this.commonConfigure[4].ch32_63_value = "";
+				this.commonConfigure[4].ch64_71_value = "";
+				this.commonConfigure[6].value_h = "";
+				this.commonConfigure[6].value_l = "";
+				this.commonConfigure[7].value_1 = "";
+				this.commonConfigure[7].value_2 = "";
+				this.commonConfigure[7].value_3 = "";
+				this.commonConfigure[7].value_4 = "";
 				this.readCommonConfigure();
 				uni.$once("readCommonConfigOk", () => {
 					this.readSpecialConfigure();
 				});
-				// setTimeout(() => {
-				// 	this.readSpecialConfigure();
-				// }, 3000);
 			},
 			commitCommonConfigure() {
 				bleInfo.ble_recv_data = "";
@@ -650,7 +576,7 @@
 									// console.log("ble info " + bleInfo.ble_recv_data);
 									if (crcCheck(bleInfo.ble_recv_data)) {
 										let data = bleInfo.ble_recv_data.slice(6, bleInfo.ble_recv_data.length - 4).match(/.{1,8}/g);
-										console.log("下发通用设置:", data);
+										// console.log("下发通用设置:", data);
 										setTimeout(() => {
 											uni.$emit("writeCommonConfigOk");
 										}, 500);
@@ -659,18 +585,6 @@
 									}
 								}
 							});
-							// setTimeout(() => {
-							// 	if (bleInfo.ble_recv_data) {
-							// 		console.log("ble info " + bleInfo.ble_recv_data);
-							// 		if (crcCheck(bleInfo.ble_recv_data)) {
-							// 			let data = bleInfo.ble_recv_data.slice(6, bleInfo.ble_recv_data.length - 4).match(/.{1,8}/g);
-							// 			console.log(data);
-							// 		} else {
-							// 			bleInfo.ble_recv_data = '';
-							// 		}
-							// 	}
-							// }, 2000);
-
 						},
 						fail: (err) => {
 							console.error("读取特殊设置失败: " + err.errMsg);
@@ -722,20 +636,6 @@
 								}
 							}
 						});
-						// setTimeout(() => {
-						// 	if (bleInfo.ble_recv_data) {
-						// 		console.log("ble info " + bleInfo.ble_recv_data);
-						// 		if (crcCheck(bleInfo.ble_recv_data)) {
-						// 			let data = bleInfo.ble_recv_data.slice(6, bleInfo.ble_recv_data.length - 4).match(/.{1,8}/g);
-						// 			console.log(data);
-						// 			uni.showToast({
-						// 				title: "success."
-						// 			});
-						// 		} else {
-						// 			bleInfo.ble_recv_data = '';
-						// 		}
-						// 	}
-						// }, 3000);
 					},
 					fail: (err) => {
 						console.error("读取设置失败: " + err.errMsg);
@@ -747,12 +647,10 @@
 				uni.$once("writeCommonConfigOk", () => {
 					this.commitSpecialConfigure();
 				});
-				// setTimeout(() => {
-				// 	this.commitSpecialConfigure();
-				// }, 3000);
 			},
 			loraChannelsChange(content) {
 				if (content) {
+					console.log("lora channels has content. ------------");
 					if (content.endsWith(',')) {
 						content = content.slice(0, -1);
 					}
@@ -786,10 +684,16 @@
 					this.commonConfigure[4].ch32_63_value = ch32_63.join(',');
 					this.commonConfigure[4].ch64_71_value = ch64_71.join(',');
 				} else {
+					console.log("lora channels has no content. -------------");
 					this.commonConfigure[4].ch0_31_value = "";
 					this.commonConfigure[4].ch32_63_value = "";
 					this.commonConfigure[4].ch64_71_value = "";
 				}
+			},
+			loraChannelsClear() {
+				this.commonConfigure[4].ch0_31_value = "";
+				this.commonConfigure[4].ch32_63_value = "";
+				this.commonConfigure[4].ch64_71_value = "";
 			},
 			cycleChange(content) {
 				this.cycleChecked = true;
@@ -818,6 +722,7 @@
 				this.readSpecialConfigure();
 			},
 			devEUIChange(content) {
+				console.log("devEUI change ---------------");
 				const hexRegex = /^[0-9a-fA-F]+$/;
 				this.devEUIChecked = true;
 				if (content.length != 16) {
@@ -832,6 +737,7 @@
 				this.commonConfigure[6].value_l = content.slice(8, 16);
 			},
 			appKeyChange(content) {
+				console.log("appKEY change ----------");
 				const hexRegex = /^[0-9a-fA-F]+$/;
 				this.appKeyChecked = true;
 				if (content.length != 32) {
