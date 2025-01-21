@@ -5,5 +5,6 @@ export default reactive({
 	ble_recv_characteristic: null,
 	ble_send_characteristic: null,
 	ble_connected: false,
-	ble_recv_data: ""
+	ble_recv_data: "",
+	isLogged: false
 });

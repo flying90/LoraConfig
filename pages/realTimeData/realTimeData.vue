@@ -17,9 +17,9 @@
 					<text class="data_unit">{{dwl4Channel.unit}}</text>
 				</view>
 				<view class="data_cell" v-else-if="deviceName.includes('TILT')" v-for="(tiltChannel, tiltIndex) in tiltChannels" :key="tiltIndex+9">
-					<text class="data_label">{{channel.channel_name}}: </text>
-					<text class="data_value">{{channel.value}} </text>
-					<text class="data_unit">{{channel.unit}}</text>
+					<text class="data_label">{{tiltChannel.channel_name}}: </text>
+					<text class="data_value">{{tiltChannel.value}} </text>
+					<text class="data_unit">{{tiltChannel.unit}}</text>
 				</view>
 			</view>
 		</scroll-view>
@@ -92,58 +92,63 @@
 				dwl4Channels: [{
 						channel_name: "Frequency of CH1",
 						value: 0,
-						unit: " Hz"
+						unit: "Hz"
 					},
 					{
 						channel_name: "Temperature of CH1",
 						value: 0,
-						unit: " ℃"
+						unit: "℃"
 					},
 					{
 						channel_name: "Frequency of CH2",
 						value: 0,
-						unit: " Hz"
+						unit: "Hz"
 					},
 					{
 						channel_name: "Temperature of CH2",
 						value: 0,
-						unit: " ℃"
+						unit: "℃"
 					},
 					{
 						channel_name: "Frequency of CH3",
 						value: 0,
-						unit: " Hz"
+						unit: "Hz"
 					},
 					{
 						channel_name: "Temperature of CH3",
 						value: 0,
-						unit: " ℃"
+						unit: "℃"
 					},
 					{
 						channel_name: "Frequency of CH4",
 						value: 0,
-						unit: " Hz"
+						unit: "Hz"
 					},
 					{
 						channel_name: "Temperature of CH4",
 						value: 0,
-						unit: " ℃"
+						unit: "℃"
 					},
 				],
 				tiltChannels: [{
+						channel_name: "Temperature",
+						value: 0,
+						unit: "℃"
+					},
+					{
 						channel_name: "X-axis reading",
 						value: 0,
-						unit: " °"
+						unit: "°"
 					},
 					{
 						channel_name: "Y-axis reading",
 						value: 0,
-						unit: " °"
+						unit: "°"
 					},
 					{
 						channel_name: "Z-axis reading",
 						value: 0,
-						unit: " °"
+						unit: "°"
 					},
 				]
 			}
@@ -286,10 +291,13 @@
 													this.tiltChannels[0].value = byteStr2Float(data[4]).toFixed(1);
 													break;
 												case 5:
-													this.tiltChannels[1].value = byteStr2Float(data[5]).toFixed(1);
+													this.tiltChannels[1].value = byteStr2Float(data[5]).toFixed(4);
 													break;
 												case 6:
-													this.tiltChannels[2].value = byteStr2Float(data[6]).toFixed(1);
+													this.tiltChannels[2].value = byteStr2Float(data[6]).toFixed(4);
+													break;
+												case 7:
+													this.tiltChannels[3].value = byteStr2Float(data[7]).toFixed(4);
 													break;
 												case 12:
 													this.commonChannels[4].value = byteStr2Float(data[12]).toFixed(1);

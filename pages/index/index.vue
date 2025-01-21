@@ -1,5 +1,7 @@
 <template>
 	<view class="container">
+		<image src="@/static/image/log.png" style="width: 100%; height: 30px;" mode="aspectFit"></image>
+		<
 		<text style="font-size: 18px;">Scan Results:</text>
 		<scroll-view scroll-y="true" class="scroll_y">
 			<view class="dev_option" v-for="(device, index) in bleDevList" :key="index" @click="handleConnect(device)">
@@ -60,6 +62,7 @@
 								powerLevel: "high",
 								services: ["FFF0"],
 								success: e => {
+									this.bleDevList = [];
 									console.log('开始搜索蓝牙设备:' + e.errMsg);
 									this.scanFlag = true;
 									this.onBluetoothDeviceFound();
@@ -151,7 +154,7 @@
 					characteristicId: bleInfo.ble_send_characteristic.uuid,
 					value: modbusCmd,
 					success: (res) => {
-						console.log("防休眠发送成功: " + res.errMsg);
+						// console.log("防休眠发送成功: " + res.errMsg);
 						setTimeout(() => {
 							if (bleInfo.ble_recv_data) {
 								console.log("ble info " + bleInfo.ble_recv_data);
@@ -189,6 +192,7 @@
 							uni.onBLECharacteristicValueChange(this.handleBLEDataChange);
 							this.isBLEListenerBound = true;
 						}
+						this.readCount();
 						// 50秒读一次缓存数量以防止设备休眠
 						this.readTimer = setInterval(() => {
 							this.readCount();

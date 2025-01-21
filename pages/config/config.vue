@@ -66,7 +66,7 @@
 						</view>
 						<view v-else class="config_cell">
 							<text class="config_label">{{config.name}}{{config.unit?`\n(${config.unit})`: ""}}: </text>
-							<uni-easyinput type="text" v-model="config.value" :disabled="!config.editable" class="config_value"></uni-easyinput>
+							<uni-easyinput type="number" v-model="config.value" :disabled="!config.editable" class="config_value"></uni-easyinput>
 						</view>
 					</view>
 				</view>
@@ -78,7 +78,7 @@
 						</view>
 						<view v-else class="config_cell">
 							<text class="config_label">{{config.name}}{{config.unit?`\n(${config.unit})`: ""}}: </text>
-							<uni-easyinput type="text" v-model="config.value" :disabled="!config.editable" class="config_value"></uni-easyinput>
+							<uni-easyinput type="number" v-model="config.value" :disabled="!config.editable" class="config_value"></uni-easyinput>
 						</view>
 					</view>
 				</view>
@@ -88,6 +88,7 @@
 	<view class="sb_btn">
 		<view class="btn_group">
 			<button type="primary" :disabled="btnDisabled" @click="readConfigure">Read</button>
+			<button type="primary" :disabled="btnDisabled" @click="report">Report</button>
 			<!-- <button type="primary" @click="test">Read</button> -->
 			<!-- <button type="primary" @click="commitConfigure">Submit</button> -->
 			<button type="primary" :disabled="btnDisabled" @click="commitConfigure">Submit</button>
@@ -112,6 +113,7 @@
 	export default {
 		data() {
 			return {
+				isLogged: !bleInfo.isLogged,
 				cycleChecked: true,
 				snChecked: true,
 				datetimeConfig: false,
@@ -258,26 +260,26 @@
 						value: 1,
 						range: [{
 							value: 1,
-							text: "Device Channel 1"
+							text: " Device Channel 1"
 						}],
 						editable: false,
 						unit: ""
 					},
 					{
 						name: "X-axis Coefficient",
-						value: 100,
+						value: 0,
 						editable: true,
 						unit: ""
 					},
 					{
 						name: "Y-axis Coefficient",
-						value: 100,
+						value: 0,
 						editable: true,
 						unit: ""
 					},
 					{
 						name: "Z-axis Coefficient",
-						value: 100,
+						value: 0,
 						editable: true,
 						unit: ""
 					}
@@ -312,7 +314,7 @@
 				return `${this.commonConfigure[6].value_h}${this.commonConfigure[6].value_l}`;
 			},
 			appKey() {
-				return `${this.commonConfigure[7].value_1}${this.commonConfigure[7].value_2+this.commonConfigure[7].value_3}${this.commonConfigure[7].value_4}`;
+				return `${this.commonConfigure[7].value_1}${this.commonConfigure[7].value_2}${this.commonConfigure[7].value_3}${this.commonConfigure[7].value_4}`;
 			},
 			devName() {
 				return bleInfo.ble_device ? bleInfo.ble_device.name : "";
@@ -332,6 +334,43 @@
 				let month = (date.getMonth() + 1).toString().padStart(2, '0');
 				let day = date.getDate().toString().padStart(2, '0');
 				return `00${year}${month}${day}`;
+			},
+			report() {
+				bleInfo.ble_recv_data = "";
+				let cmdStr = "01 15 00 01 06 00 01 00 00 00 01";
+				let modbusCmd = getModbusCmdBuf(cmdStr);
+				uni.writeBLECharacteristicValue({
+					deviceId: bleInfo.ble_device.deviceId,
+					serviceId: bleInfo.ble_service.uuid,
+					characteristicId: bleInfo.ble_send_characteristic.uuid,
+					value: modbusCmd,
+					success: (res) => {
+						// console.log("读取特殊设置发送成功: " + res.errMsg);
+						uni.$once("dataArrive", () => {
+							// console.log("设置页面收到数据");
+							if (bleInfo.ble_recv_data) {
+								// console.log("ble info " + bleInfo.ble_recv_data);
+								if (crcCheck(bleInfo.ble_recv_data)) {
+									let data = bleInfo.ble_recv_data.slice(6, bleInfo.ble_recv_data.length - 4).match(/.{1,8}/g);
+									// console.log(data);
+									uni.showToast({
+										title: "success"
+									})
+								} else {
+									bleInfo.ble_recv_data = '';
+								}
+							}
+						});
+					},
+					fail: (err) => {
+						console.error("读取特殊设置失败: " + err.errMsg);
+						uni.showToast({
+							title: "read failed.",
+							icon: "error",
+							duration: 2000
+						})
+					}
+				});
 			},
 			readCommonConfigure() {
 				bleInfo.ble_recv_data = "";
@@ -403,7 +442,7 @@
 									}
 									setTimeout(() => {
 										uni.$emit("readCommonConfigOk");
-									}, 100);
+									}, 600);
 
 								} else {
 									bleInfo.ble_recv_data = '';
@@ -452,7 +491,7 @@
 										}
 									} else if (bleInfo.ble_device.name.includes("TILT")) {
 										for (let i = 0; i < data.length; i++) {
-											this.tiltConfigure[i + 1].value = byteStr2Float(data[i]);
+											this.tiltConfigure[i + 1].value = Number(byteStr2Float(data[i]).toFixed(4));
 										}
 									}
 								} else {
