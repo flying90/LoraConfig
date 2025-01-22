@@ -26,12 +26,12 @@
 					</view>
 					<view v-else-if="index === 3" class="config_cell">
 						<text class="config_label">{{config.name}}{{config.unit?`\n(${config.unit})`: ""}}: </text>
-						<uni-data-select v-model="config.value" :localdata="config.range" :clear="false" :disabled="!config.editable" placeholder="Select"></uni-data-select>
+						<uni-data-select v-model="config.value" :localdata="config.range" :clear="false" :disabled="!isLogged" placeholder="Select"></uni-data-select>
 					</view>
 					<view v-else-if="index === 4">
 						<view class="config_cell">
 							<text class="config_label">{{config.name}}{{config.unit?`\n(${config.unit})`: ""}}: </text>
-							<uni-easyinput type="text" :value="loraChannels" :disabled="!config.editable" class="config_value" @change="loraChannelsChange" @clear="loraChannelsClear"></uni-easyinput>
+							<uni-easyinput type="text" :value="loraChannels" :disabled="!isLogged" class="config_value" @change="loraChannelsChange" @clear="loraChannelsClear"></uni-easyinput>
 						</view>
 						<text v-if="!loraChannelsChecked" class="warning">channels verification failed</text>
 					</view>
@@ -56,7 +56,6 @@
 						</view>
 						<text v-if="!appKeyChecked" class="warning">appKey verification failed</text>
 					</view>
-
 				</view>
 				<view v-if="devName.includes('DWL4')">
 					<view v-for="(config,index) in dwl4Configure" :key="index">
@@ -71,7 +70,7 @@
 					</view>
 				</view>
 				<view v-else-if="devName.includes('TILT')">
-					<view v-for="(config,index) in tiltConfigure" :key="index" class="config_cell">
+					<view v-for="(config,index) in tiltConfigure" :key="index">
 						<view v-if="index === 0" class="config_cell">
 							<text class="config_label">{{config.name}}{{config.unit?`\n(${config.unit})`: ""}}: </text>
 							<uni-data-select v-model="config.value" :localdata="config.range" @change="channelChange" :clear="false" :disabled="!config.editable"></uni-data-select>
@@ -113,7 +112,6 @@
 	export default {
 		data() {
 			return {
-				isLogged: !bleInfo.isLogged,
 				cycleChecked: true,
 				snChecked: true,
 				datetimeConfig: false,
@@ -287,6 +285,9 @@
 			}
 		},
 		computed: {
+			isLogged(){
+				return bleInfo.isLogged;
+			},
 			btnDisabled() {
 				return !bleInfo.ble_connected;
 			},

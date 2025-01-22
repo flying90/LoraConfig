@@ -1,7 +1,23 @@
 <template>
 	<view class="container">
-		<image src="@/static/image/log.png" style="width: 100%; height: 30px;" mode="aspectFit"></image>
-		<
+		<image src="@/static/image/log.png" style="width: 100%; height: 30px;" mode="aspectFit" @longpress="handleLogin"></image>
+		<!-- 登录弹窗 -->
+		<uni-popup ref="loginPopup" type="center">
+			<view class="popup-content">
+				<text class="popup-title">Band Config Verification</text>
+				<input v-model="inputPassword" placeholder="Password" type="password" class="popup-input" />
+				<button @click="verify" type="primary">confirm</button>
+			</view>
+		</uni-popup>
+
+		<!-- 退出弹窗 -->
+		<uni-popup ref="logoutPopup" type="center">
+			<view class="popup-content">
+				<text class="popup-title">Cancel Verification?</text>
+				<button @click="logout" type="primary">confirm</button>
+			</view>
+		</uni-popup>
+		<view class="divider"></view>
 		<text style="font-size: 18px;">Scan Results:</text>
 		<scroll-view scroll-y="true" class="scroll_y">
 			<view class="dev_option" v-for="(device, index) in bleDevList" :key="index" @click="handleConnect(device)">
@@ -38,6 +54,8 @@
 		data() {
 			return {
 				bleDevList: [],
+				inputPassword: "",
+				defaultPassword: "datawave",
 				scanFlag: false,
 				readTimer: null,
 				isBLEListenerBound: false,
@@ -46,9 +64,44 @@
 		computed: {
 			bleConnectFlag() {
 				return bleInfo.ble_connected;
+			},
+			isLoggedIn(){
+				return bleInfo.isLogged;
 			}
 		},
 		methods: {
+			handleLogin() {
+				if (this.isLoggedIn) {
+					this.$refs.logoutPopup.open();
+				} else {
+					this.$refs.loginPopup.open();
+				}
+
+			},
+			verify() {
+				if (this.inputPassword == this.defaultPassword) {
+					bleInfo.isLogged = true;
+					this.inputPassword = "";
+					uni.showToast({
+						title: 'success.',
+						icon: 'none'
+					});
+					this.$refs.loginPopup.close();
+				} else {
+					uni.showToast({
+						title: 'check password.',
+						icon: 'none'
+					});
+				}
+			},
+			logout() {
+				bleInfo.isLogged = false;
+				uni.showToast({
+					title: 'success.',
+					icon: 'none'
+				});
+				this.$refs.logoutPopup.close();
+			},
 			/**
 			 * 开始搜索蓝牙设备
 			 */
@@ -308,18 +361,9 @@
 				uni.closeBLEConnection({
 					deviceId,
 					success: res => {
-
 						bleInfo.ble_connected = false;
 						clearInterval(this.readTimer);
 						console.log('断开低功耗蓝牙成功:' + res.errMsg);
-						// uni.closeBluetoothAdapter({
-						// 	success: (res) => {
-						// 		console.log("释放适配器成功");
-						// 	},
-						// 	fail: (res) => {
-						// 		console.log("释放适配器失败");
-						// 	}
-						// })
 					},
 					fail: e => {
 						console.log('断开低功耗蓝牙失败，错误码：' + e.errCode);
@@ -357,19 +401,58 @@
 		line-height: 24px;
 	}
 
+	.divider {
+		height: 1px;
+		background-color: #ddd;
+		margin: 20rpx 0;
+	}
+
+	.popup-content {
+		width: 300px;
+		padding: 20px;
+		background-color: #fff;
+		border-radius: 10px;
+		text-align: center;
+	}
+
+	.popup-title {
+		font-size: 18px;
+		font-weight: bold;
+		margin-bottom: 20px;
+		display: block;
+	}
+
+	.popup-input {
+		width: 100%;
+		height: 50px;
+		/* padding: 10px; */
+		margin-bottom: 15px;
+		border: 1px solid #ccc;
+		border-radius: 5px;
+	}
+
+	.dialog-box {
+		padding: 10px;
+	}
+
+	.dialog-text {
+		font-size: 14px;
+		color: #333;
+	}
+
 	.scroll_y {
-		height: 84vh;
+		height: 77vh;
 	}
 
 	.dev_option {
 		background: #F5F6F7;
-		margin: 12px 0px;
+		/* margin: 4px 0px; */
 		border-radius: 12px;
 	}
 
 	.dev {
 		display: inline-block;
-		padding-bottom: 14px;
+		padding-bottom: 10px;
 	}
 
 	.dev_ico {

@@ -7,8 +7,8 @@
 					<text class="read_time">{{readTime}} </text>
 				</view>
 				<view class="data_cell" v-for="(comChannel, comIndex) in commonChannels" :key="comIndex">
-					<text class="data_label">{{comChannel.channel_name}}: </text>
-					<text class="data_value">{{comChannel.value}} </text>
+					<text class="data_label">{{comChannel.channel_name}}:</text>
+					<text class="data_value">{{comChannel.value}}</text>
 					<text class="data_unit">{{comChannel.unit}}</text>
 				</view>
 				<view class="data_cell" v-if="deviceName.includes('DWL4')" v-for="(dwl4Channel, dwl4Index) in dwl4Channels" :key="dwl4Index+9">
