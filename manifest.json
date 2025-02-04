@@ -81,6 +81,22 @@
                     }
                 }
             }
+        },
+        "nativePlugins" : {
+            "DCloud-FilePicker" : {
+                "__plugin_info__" : {
+                    "name" : "FilePicker",
+                    "description" : "示例插件",
+                    "platforms" : "Android",
+                    "url" : "",
+                    "android_package_name" : "",
+                    "ios_bundle_id" : "",
+                    "isCloud" : false,
+                    "bought" : -1,
+                    "pid" : "",
+                    "parameters" : {}
+                }
+            }
         }
     },
     /* SDK配置 */

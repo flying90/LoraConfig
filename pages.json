@@ -1,31 +1,29 @@
 {
 	"pages": [{
-		"path": "pages/index/index",
-		"style": {
-			"navigationBarTitleText": "Bluetooth"
-		}
-	},
-	{
-		"path" : "pages/config/config",
-		"style" : 
+			"path": "pages/index/index",
+			"style": {
+				"navigationBarTitleText": "Bluetooth"
+			}
+		},
 		{
-			"navigationBarTitleText" : "Config"
-		}
-	},
-	{
-		"path" : "pages/realTimeData/realTimeData",
-		"style" : 
+			"path": "pages/config/config",
+			"style": {
+				"navigationBarTitleText": "Config"
+			}
+		},
 		{
-			"navigationBarTitleText" : "Real-time Data"
-		}
-	},
-	{
-		"path" : "pages/download/download",
-		"style" : 
+			"path": "pages/realTimeData/realTimeData",
+			"style": {
+				"navigationBarTitleText": "Real-time Data"
+			}
+		},
 		{
-			"navigationBarTitleText" : "Download"
+			"path": "pages/download/download",
+			"style": {
+				"navigationBarTitleText": "Download"
+			}
 		}
-	}],
+	],
 	"tabBar": {
 		"color": "#7A7E83",
 		"selectedColor": "#3cc51f",
