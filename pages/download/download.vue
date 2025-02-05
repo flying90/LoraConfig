@@ -31,8 +31,8 @@
 		data() {
 			return {
 				path: 'Documents/LoraWAN',
-				total: 1997,
-				current: 910,
+				total: 90000,
+				current: 0,
 				csvData: ["Model"],
 			}
 		},
@@ -48,39 +48,7 @@
 			onShow() {
 				console.log(plus.runtime.arguments);
 			},
-			async runSequentialLoop() {
-				for (let index = 0; index < this.current; index++) {
-					await new Promise((resolve, reject) => {
-						let cmdStr = `01 03 ${(0x000200 + index).toString(16).padStart(6, '0')} 00 01`;
-						console.log(`+++++${index}+++++`, cmdStr);
-						let modbusCmd = getModbusCmdBuf(cmdStr);
-
-						uni.writeBLECharacteristicValue({
-							deviceId: bleInfo.ble_device.deviceId,
-							serviceId: bleInfo.ble_service.uuid,
-							characteristicId: bleInfo.ble_send_characteristic.uuid,
-							value: modbusCmd,
-							success: (res) => {
-								// 监听数据到达事件（一次性）
-								uni.$once("dataArrive", () => {
-									if (crcCheck(bleInfo.ble_recv_data)) {
-										let data = bleInfo.ble_recv_data.slice(8, bleInfo.ble_recv_data.length - 6);
-										console.log('********', data);
-										resolve(); // 完成当前循环，继续下一次
-									}
-								});
-							},
-							fail: (err) => {
-								console.log(`读取失败，地址:${(0x000200 + index).toString(16).padStart(6, '0')}`);
-								reject(err); // 可选：处理失败逻辑
-							}
-						});
-					}).catch(err => {
-						console.error("循环中断，错误:", err);
-					});
-				}
-			},
-			getHistory() {
+			getCurrent(){
 				bleInfo.ble_recv_data = "";
 				this.current = 0;
 				let cmdStr = "01 03 00 00 00 00 01";
@@ -96,6 +64,7 @@
 								let data = bleInfo.ble_recv_data.slice(6, bleInfo.ble_recv_data.length - 4).match(/.{1,8}/g);
 								this.current = byteStr2Int(data[0]);
 								console.log(this.current);
+								bleInfo.ble_recv_data = "";
 								setTimeout(() => {
 									uni.$emit("currentReady");
 								}, 600);
@@ -106,25 +75,32 @@
 						console.log("读取缓存数量失败");
 					}
 				});
+			},
+			getHistoryOnce() {
 				uni.$once("currentReady", () => {
 					if (bleInfo.ble_device.name.includes("DWL4")) {
 						/*for (let index = 0; index < this.current; index++) {
 							cmdStr = `01 03 ${(0x000200+index).toString(16).padStart(6,'0')} 00 01`;
-							console.log(`+++++${index}+++++`, cmdStr);
-							modbusCmd = getModbusCmdBuf(cmdStr);
+							console.log(`+++++${index}+++++`, cmdStr);*/
+							console.log("readDWL4");
+							let cmdStr = "01 03 00 02 00 00 01"
+							let modbusCmd = getModbusCmdBuf(cmdStr);
 							uni.writeBLECharacteristicValue({
 								deviceId: bleInfo.ble_device.deviceId,
 								serviceId: bleInfo.ble_service.uuid,
 								characteristicId: bleInfo.ble_send_characteristic.uuid,
 								value: modbusCmd,
 								success: (res) => {
+									console.log("success 1");
 									uni.$once("dataArrive", () => {
+										console.log("success 2");
 										if (crcCheck(bleInfo.ble_recv_data)) {
+											console.log("success 3");
 											let data = bleInfo.ble_recv_data.slice(8, bleInfo.ble_recv_data.length - 6);
 											console.log('********', data);
-											// let datetime = data.slice(1, 13).match(/.{1,6}/g);
-											// let collectionData = data.slice(13, ).match(/.{1,8}/g);
-											// console.log('------', datetime, collectionData);
+											let datetime = data.slice(0, 12).match(/.{1,6}/g);
+											let collectionData = data.slice(12, ).match(/.{1,8}/g);
+											console.log('------', datetime, collectionData);
 										}
 									});
 								},
@@ -132,15 +108,12 @@
 									console.log(`读取缓存失败，地址:${(0x000200+index).toString(16).padStart(6,'0')}`);
 								}
 							});
-						}*/
-						this.runSequentialLoop().then(() => {
-							console.log("所有循环完成");
-						});
+						// }
 					} else if (bleInfo.ble_device.name.includes("TILT")) {
 						let cmdStr = "01 03 00 00 00 00 15";
 						let modbusCmd = getModbusCmdBuf(cmdStr);
 					}
-				})
+				});
 			},
 			download() {
 				const richAlert = uni.requireNativePlugin("DCloud-FilePicker");
@@ -154,6 +127,11 @@
 				});
 			},
 
+		},
+		onShow() {
+			if(bleInfo.ble_connected){
+				this.getCurrent();
+			}
 		}
 	}
 </script>
