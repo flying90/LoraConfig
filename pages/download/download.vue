@@ -33,7 +33,6 @@
 				path: 'Documents/LoraWAN',
 				total: 90000,
 				current: 0,
-				csvData: ["Model"],
 			}
 		},
 		computed: {
@@ -45,8 +44,15 @@
 			}
 		},
 		methods: {
-			onShow() {
-				console.log(plus.runtime.arguments);
+			getDatetime() {
+				let date = new Date();
+				let year = date.getFullYear();
+				let month = (date.getMonth() + 1).toString().padStart(2, '0');
+				let day = date.getDate().toString().padStart(2, '0');
+				let hours = date.getHours().toString().padStart(2, '0');
+				let minutes = date.getMinutes().toString().padStart(2, '0');
+				let seconds = date.getSeconds().toString().padStart(2, '0');
+				return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
 			},
 			getCurrent() {
 				bleInfo.ble_recv_data = "";
@@ -90,9 +96,11 @@
 						value,
 						success: (res) => {
 							uni.$once("dataArrive", () => {
-								if (crcCheck(bleInfo.ble_recv_data)) {
+								if (crcCheck(bleInfo.ble_recv_data) && bleInfo.ble_recv_data.length > 20) {
 									let data = bleInfo.ble_recv_data.slice(8, bleInfo.ble_recv_data.length - 6);
 									resolve(data); // 成功时返回结果
+								} else {
+									reject(res);
 								}
 							});
 
@@ -101,52 +109,79 @@
 							reject(err); // 失败时抛出错误
 						},
 					});
+					setTimeout(() => {
+						reject("timeout")
+					}, 8000);
 				});
 			},
-			async getData(modbusCmd) {
+			async getData() {
 				try {
 					const richAlert = uni.requireNativePlugin("DCloud-FilePicker");
 					this.getCurrent();
 					uni.$once("currentReady", async () => {
+						// console.log("success. 1");
 						if (bleInfo.ble_device.name.includes("DWL4")) {
+							bleInfo.isCsvLoading = true;
+							uni.showLoading({
+								title: "Downloading..."
+							});
+							// console.log("success. 2");
 							let csvData =
 								`Model,DWL-TILT-CDSK,
 SN,${bleInfo.ble_device.name.slice(5,)},,AppVersion,V1.0.0,
 Logging Interval,00hr00min00sec,
-Download Time,2025/02/06 01:48,
+Download Time,${this.getDatetime()},
 Battery Voltage(V),11.78,
 Number Of Records,${this.current},
 Date/Time,RECORD,Battery Voltage(V),Reading(R1),Reading(R2),Reading(R3),Reading(R4),Reading(R5),Reading(R6),Reading(R7),Reading(R8),Reading(R9),Reading(R10),Reading(R11),
 ,,V,Hz,Deg C,Hz,Deg C,Hz,Deg C,Hz,Deg C,Deg C,%RH,hPa`
 							for (var index = 0; index < this.current; index++) {
+								// console.log("success. 3");
 								bleInfo.ble_recv_data = "";
 								let cmdStr = `01 03 ${(0x000200+index).toString(16).padStart(6, '0')} 00 01`;
 								// console.log(index, '---', cmdStr);
 								let modbusCmd = getModbusCmdBuf(cmdStr);
-								let data = await this.writeBLECharacteristicValueAsync({
-									deviceId: bleInfo.ble_device.deviceId,
-									serviceId: bleInfo.ble_service.uuid,
-									characteristicId: bleInfo.ble_send_characteristic.uuid,
-									value: modbusCmd
-								});
-								console.log("++++++", data);
+								let data;
+								try {
+									// console.log("success. 4");
+									data = await this.writeBLECharacteristicValueAsync({
+										deviceId: bleInfo.ble_device.deviceId,
+										serviceId: bleInfo.ble_service.uuid,
+										characteristicId: bleInfo.ble_send_characteristic.uuid,
+										value: modbusCmd
+									});
+								} catch (err) {
+									console.log(`retry index ${index}`);
+									data = await this.writeBLECharacteristicValueAsync({
+										deviceId: bleInfo.ble_device.deviceId,
+										serviceId: bleInfo.ble_service.uuid,
+										characteristicId: bleInfo.ble_send_characteristic.uuid,
+										value: modbusCmd
+									});
+								} finally {
+									bleInfo.ble_recv_data = "";
+								}
+								// console.log("++++++", data);
 								let datetimeArr = data.slice(0, 12).match(/.{1,6}/g);
 								let collectionDataArr = data.slice(12, ).match(/.{1,8}/g);
-								// let rowData = [...datetime, ...collectionData]
-								// rowData[0] = '20' + datetimeArr[0].match(/.{1,2}/g).join('-');
-								// rowData[1] = datetimeArr[1].match(/.{1,2}/g).join(':');
 								let datetime = '20' + datetimeArr[0].match(/.{1,2}/g).join('-') + ' ' + datetimeArr[1].match(/.{1,2}/g).join(':');
-								let rowData = `${datetime},${index},${collectionDataArr.join(',')}`
+								let rowData = `${datetime},${index},${collectionDataArr.join(',')}`;
 								console.log(index, '---', rowData);
 								csvData += '\r\n' + rowData;
 							}
 							richAlert.saveFile({
 								folder: this.path,
-								fileName: "111.csv",
+								fileName: bleInfo.ble_device.name + `_${this.getDatetime()}.csv`,
 								data: csvData
 							}, result => {
-								console.log("======", result);
+								// console.log("======", result);
+								uni.hideLoading();
+								uni.showToast({
+									title: "success.",
+									icon: "success"
+								})
 							});
+							bleInfo.isCsvLoading = false;
 						} else if (bleInfo.ble_device.name.includes("TILT")) {
 							let cmdStr = "01 03 00 00 00 00 15";
 							let modbusCmd = getModbusCmdBuf(cmdStr);
@@ -155,60 +190,32 @@ Date/Time,RECORD,Battery Voltage(V),Reading(R1),Reading(R2),Reading(R3),Reading(
 				} catch (error) {
 					//TODO handle the exception
 					console.log("读取数据出错: ", error);
+				} finally {
+					bleInfo.ble_recv_data = "";
 				}
 			},
-			getHistoryOnce() {
-				this.getCurrent();
-				uni.$once("currentReady", () => {
-					if (bleInfo.ble_device.name.includes("DWL4")) {
-						/*for (let index = 0; index < this.current; index++) {
-							cmdStr = `01 03 ${(0x000200+index).toString(16).padStart(6,'0')} 00 01`;
-							console.log(`+++++${index}+++++`, cmdStr);*/
-						console.log("readDWL4");
-						let cmdStr = "01 03 00 02 00 00 01"
-						let modbusCmd = getModbusCmdBuf(cmdStr);
-						uni.writeBLECharacteristicValue({
-							deviceId: bleInfo.ble_device.deviceId,
-							serviceId: bleInfo.ble_service.uuid,
-							characteristicId: bleInfo.ble_send_characteristic.uuid,
-							value: modbusCmd,
-							success: (res) => {
-								console.log("success 1");
-								uni.$once("dataArrive", () => {
-									console.log("success 2");
-									if (crcCheck(bleInfo.ble_recv_data)) {
-										console.log("success 3");
-										let data = bleInfo.ble_recv_data.slice(8, bleInfo.ble_recv_data.length - 6);
-										console.log('********', data);
-										let datetime = data.slice(0, 12).match(/.{1,6}/g);
-										let collectionData = data.slice(12, ).match(/.{1,8}/g);
-										console.log('------', datetime, collectionData);
-									}
-								});
-							},
-							fail: (res) => {
-								console.log(`读取缓存失败，地址:${(0x000200+index).toString(16).padStart(6,'0')}`);
+			getInfo(){
+				bleInfo.ble_recv_data = "";
+				let cmdStr = "01 03 00 00 03 00 0D";
+				let modbusCmd = getModbusCmdBuf(cmdStr);
+				uni.writeBLECharacteristicValue({
+					deviceId: bleInfo.ble_device.deviceId,
+					serviceId: bleInfo.ble_service.uuid,
+					characteristicId: bleInfo.ble_send_characteristic.uuid,
+					value: modbusCmd,
+					success: (res) => {
+						uni.$once("dataArrive", () => {
+							if (crcCheck(bleInfo.ble_recv_data)) {
+								let data = bleInfo.ble_recv_data.slice(6, bleInfo.ble_recv_data.length - 4).match(/.{1,8}/g);
+								let batt = byteStr2Int(data[0]) / 100
 							}
 						});
-						// }
-					} else if (bleInfo.ble_device.name.includes("TILT")) {
-						let cmdStr = "01 03 00 00 00 00 15";
-						let modbusCmd = getModbusCmdBuf(cmdStr);
+					},
+					fail: (res) => {
+						console.log("读取缓存数量失败");
 					}
 				});
-			},
-			download() {
-				const richAlert = uni.requireNativePlugin("DCloud-FilePicker");
-				console.log(richAlert);
-				richAlert.saveFile({
-					folder: this.path,
-					fileName: "111.csv",
-					data: "1,1,232,323,32"
-				}, result => {
-					console.log("======", result);
-				});
-			},
-
+			}
 		},
 		onShow() {
 			if (bleInfo.ble_connected) {

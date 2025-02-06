@@ -65,7 +65,7 @@
 			bleConnectFlag() {
 				return bleInfo.ble_connected;
 			},
-			isLoggedIn(){
+			isLoggedIn() {
 				return bleInfo.isLogged;
 			}
 		},
@@ -198,6 +198,9 @@
 			 * 读取数据缓存以防止休眠
 			 */
 			readCount() {
+				if (bleInfo.isCsvLoading) {
+					return;
+				}
 				bleInfo.ble_recv_data = "";
 				let cmdStr = "01 03 00 00 00 00 01";
 				let modbusCmd = getModbusCmdBuf(cmdStr);
