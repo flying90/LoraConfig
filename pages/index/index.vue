@@ -213,7 +213,7 @@
 						// console.log("防休眠发送成功: " + res.errMsg);
 						setTimeout(() => {
 							if (bleInfo.ble_recv_data) {
-								console.log("ble info " + bleInfo.ble_recv_data);
+								// console.log("ble info " + bleInfo.ble_recv_data);
 								if (crcCheck(bleInfo.ble_recv_data)) {
 									console.log("防休眠成功");
 								} else {

@@ -9,11 +9,10 @@
 		</view>
 		<view class="" style="margin-top: 20px;">
 			<text style="font-size: 20px;">Download Path: </text>
-			<button type="default" @click="getData()">test</button>
 			<input type="text" :value="path" style="height: 30px; border: 1px solid grey; background: lightgray; " disabled />
 		</view>
 		<view class="dw_btn">
-			<button type="primary" :disabled="btnDisabled" @click="download">Download</button>
+			<button type="primary" :disabled="btnDisabled" @click="getData">Download</button>
 		</view>
 	</view>
 </template>
@@ -25,6 +24,7 @@
 		getModbusCmdBuf,
 	} from "@/common/modbusRtu"
 	import {
+		byteStr2Float,
 		byteStr2Int
 	} from "@/common/utils.js"
 	export default {
@@ -33,6 +33,8 @@
 				path: 'Documents/LoraWAN',
 				total: 90000,
 				current: 0,
+				batt: 0,
+				interval: 0,
 			}
 		},
 		computed: {
@@ -54,10 +56,10 @@
 				let seconds = date.getSeconds().toString().padStart(2, '0');
 				return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
 			},
-			getCurrent() {
+			getInfo() {
 				bleInfo.ble_recv_data = "";
 				this.current = 0;
-				let cmdStr = "01 03 00 00 00 00 01";
+				let cmdStr = "01 03 00 00 00 00 10";
 				let modbusCmd = getModbusCmdBuf(cmdStr);
 				uni.writeBLECharacteristicValue({
 					deviceId: bleInfo.ble_device.deviceId,
@@ -69,7 +71,9 @@
 							if (crcCheck(bleInfo.ble_recv_data)) {
 								let data = bleInfo.ble_recv_data.slice(6, bleInfo.ble_recv_data.length - 4).match(/.{1,8}/g);
 								this.current = byteStr2Int(data[0]);
-								console.log(this.current);
+								this.batt = byteStr2Int(data[3]) / 100;
+								this.interval = byteStr2Float(data[15]);
+								console.log(this.current, this.batt, this.interval);
 								bleInfo.ble_recv_data = "";
 								setTimeout(() => {
 									uni.$emit("currentReady");
@@ -117,33 +121,30 @@
 			async getData() {
 				try {
 					const richAlert = uni.requireNativePlugin("DCloud-FilePicker");
-					this.getCurrent();
+					this.getInfo();
 					uni.$once("currentReady", async () => {
-						// console.log("success. 1");
 						if (bleInfo.ble_device.name.includes("DWL4")) {
 							bleInfo.isCsvLoading = true;
 							uni.showLoading({
-								title: "Downloading..."
+								title: "Downloading...",
+								mask: true
 							});
-							// console.log("success. 2");
 							let csvData =
 								`Model,DWL-TILT-CDSK,
 SN,${bleInfo.ble_device.name.slice(5,)},,AppVersion,V1.0.0,
-Logging Interval,00hr00min00sec,
+Logging Interval,${this.interval}min,
 Download Time,${this.getDatetime()},
-Battery Voltage(V),11.78,
+Battery Voltage(V),${this.batt},
 Number Of Records,${this.current},
 Date/Time,RECORD,Battery Voltage(V),Reading(R1),Reading(R2),Reading(R3),Reading(R4),Reading(R5),Reading(R6),Reading(R7),Reading(R8),Reading(R9),Reading(R10),Reading(R11),
-,,V,Hz,Deg C,Hz,Deg C,Hz,Deg C,Hz,Deg C,Deg C,%RH,hPa`
+,,V,Hz,Deg C,Hz,Deg C,Hz,Deg C,Hz,Deg C,Deg C,%RH,hPa`;
 							for (var index = 0; index < this.current; index++) {
-								// console.log("success. 3");
 								bleInfo.ble_recv_data = "";
 								let cmdStr = `01 03 ${(0x000200+index).toString(16).padStart(6, '0')} 00 01`;
 								// console.log(index, '---', cmdStr);
 								let modbusCmd = getModbusCmdBuf(cmdStr);
 								let data;
 								try {
-									// console.log("success. 4");
 									data = await this.writeBLECharacteristicValueAsync({
 										deviceId: bleInfo.ble_device.deviceId,
 										serviceId: bleInfo.ble_service.uuid,
@@ -151,7 +152,7 @@ Date/Time,RECORD,Battery Voltage(V),Reading(R1),Reading(R2),Reading(R3),Reading(
 										value: modbusCmd
 									});
 								} catch (err) {
-									console.log(`retry index ${index}`);
+									// console.log(`retry index ${index}`);
 									data = await this.writeBLECharacteristicValueAsync({
 										deviceId: bleInfo.ble_device.deviceId,
 										serviceId: bleInfo.ble_service.uuid,
@@ -163,15 +164,17 @@ Date/Time,RECORD,Battery Voltage(V),Reading(R1),Reading(R2),Reading(R3),Reading(
 								}
 								// console.log("++++++", data);
 								let datetimeArr = data.slice(0, 12).match(/.{1,6}/g);
-								let collectionDataArr = data.slice(12, ).match(/.{1,8}/g);
+								let collectionDataArr = data.slice(12, ).match(/.{1,8}/g).map(byteStr2Float).map(num => {
+									return Number(num).toFixed(1);
+								});
 								let datetime = '20' + datetimeArr[0].match(/.{1,2}/g).join('-') + ' ' + datetimeArr[1].match(/.{1,2}/g).join(':');
-								let rowData = `${datetime},${index},${collectionDataArr.join(',')}`;
-								console.log(index, '---', rowData);
+								let rowData = `${datetime},${index+1},${collectionDataArr.join(',')}`;
+								// console.log(index, '---', rowData);
 								csvData += '\r\n' + rowData;
 							}
 							richAlert.saveFile({
 								folder: this.path,
-								fileName: bleInfo.ble_device.name + `_${this.getDatetime()}.csv`,
+								fileName: bleInfo.ble_device.name + `_${this.getDatetime().match(/\d+/g).join('')}.csv`,
 								data: csvData
 							}, result => {
 								// console.log("======", result);
@@ -183,8 +186,74 @@ Date/Time,RECORD,Battery Voltage(V),Reading(R1),Reading(R2),Reading(R3),Reading(
 							});
 							bleInfo.isCsvLoading = false;
 						} else if (bleInfo.ble_device.name.includes("TILT")) {
-							let cmdStr = "01 03 00 00 00 00 15";
-							let modbusCmd = getModbusCmdBuf(cmdStr);
+							bleInfo.isCsvLoading = true;
+							uni.showLoading({
+								title: "Downloading...",
+								mask: true
+							});
+							let csvData =
+								`Model,DWL-TILT-CDSK,
+SN,${bleInfo.ble_device.name.slice(5,)},,AppVersion,V1.0.0,
+Logging Interval,${this.interval}min,
+Download Time,${this.getDatetime()},
+Battery Voltage(V),${this.batt},
+Number Of Records,${this.current},
+Date/Time,RECORD,Battery Voltage(V),Reading(R1),Reading(R2),Reading(R3),Reading(R4),Reading(R9),Reading(R10),Reading(R11)
+,,V,Deg C,Y Axis,X Axis,Z Axis,Deg C,%RH,hPa`;
+							for (var index = 0; index < this.current; index++) {
+								bleInfo.ble_recv_data = "";
+								let cmdStr = `01 03 ${(0x000200+index).toString(16).padStart(6, '0')} 00 01`;
+								// console.log(index, '---', cmdStr);
+								let modbusCmd = getModbusCmdBuf(cmdStr);
+								let data;
+								try {
+									data = await this.writeBLECharacteristicValueAsync({
+										deviceId: bleInfo.ble_device.deviceId,
+										serviceId: bleInfo.ble_service.uuid,
+										characteristicId: bleInfo.ble_send_characteristic.uuid,
+										value: modbusCmd
+									});
+								} catch (err) {
+									// console.log(`retry index ${index}`);
+									data = await this.writeBLECharacteristicValueAsync({
+										deviceId: bleInfo.ble_device.deviceId,
+										serviceId: bleInfo.ble_service.uuid,
+										characteristicId: bleInfo.ble_send_characteristic.uuid,
+										value: modbusCmd
+									});
+								} finally {
+									bleInfo.ble_recv_data = "";
+								}
+								// console.log("++++++", data);
+								let datetimeArr = data.slice(0, 12).match(/.{1,6}/g);
+								let collectionDataArr = data.slice(12, ).match(/.{1,8}/g).map(byteStr2Float).map((num, index) => {
+									if (index < 1) {
+										return Number(num).toFixed(2);
+									} else if (2 <= index && index <= 4) {
+										return Number(num).toFixed(4);
+									} else {
+										return Number(num).toFixed(1);
+									}
+
+								});
+								let datetime = '20' + datetimeArr[0].match(/.{1,2}/g).join('-') + ' ' + datetimeArr[1].match(/.{1,2}/g).join(':');
+								let rowData = `${datetime},${index+1},${collectionDataArr.join(',')}`;
+								// console.log(index, '---', rowData);
+								csvData += '\r\n' + rowData;
+							}
+							richAlert.saveFile({
+								folder: this.path,
+								fileName: bleInfo.ble_device.name + `_${this.getDatetime().match(/\d+/g).join('')}.csv`,
+								data: csvData
+							}, result => {
+								// console.log("======", result);
+								uni.hideLoading();
+								uni.showToast({
+									title: "success.",
+									icon: "success"
+								})
+							});
+							bleInfo.isCsvLoading = false;
 						}
 					});
 				} catch (error) {
@@ -194,32 +263,10 @@ Date/Time,RECORD,Battery Voltage(V),Reading(R1),Reading(R2),Reading(R3),Reading(
 					bleInfo.ble_recv_data = "";
 				}
 			},
-			getInfo(){
-				bleInfo.ble_recv_data = "";
-				let cmdStr = "01 03 00 00 03 00 0D";
-				let modbusCmd = getModbusCmdBuf(cmdStr);
-				uni.writeBLECharacteristicValue({
-					deviceId: bleInfo.ble_device.deviceId,
-					serviceId: bleInfo.ble_service.uuid,
-					characteristicId: bleInfo.ble_send_characteristic.uuid,
-					value: modbusCmd,
-					success: (res) => {
-						uni.$once("dataArrive", () => {
-							if (crcCheck(bleInfo.ble_recv_data)) {
-								let data = bleInfo.ble_recv_data.slice(6, bleInfo.ble_recv_data.length - 4).match(/.{1,8}/g);
-								let batt = byteStr2Int(data[0]) / 100
-							}
-						});
-					},
-					fail: (res) => {
-						console.log("读取缓存数量失败");
-					}
-				});
-			}
 		},
 		onShow() {
 			if (bleInfo.ble_connected) {
-				this.getCurrent();
+				this.getInfo();
 			}
 		}
 	}
