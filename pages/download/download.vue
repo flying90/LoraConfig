@@ -14,7 +14,17 @@
 		<view class="dw_btn">
 			<button type="primary" :disabled="btnDisabled" @click="getData">Download</button>
 		</view>
+		<!-- 全屏遮罩层（覆盖所有内容，拦截操作） -->
+		<view v-if="showProgress" class="fullscreen-mask" @touchmove.stop.prevent="handlePrevent" @click.stop.prevent="handlePrevent">
+			<!-- 进度条容器（居中显示） -->
+			<view class="progress-wrapper">
+				<text class="progress-text">Downloading, please do not exit!</text>
+				<progress :percent="downloadPercent" activeColor="#00ff00" stroke-width="12" :active="true" active-mode="forwards" />
+				<text class="progress-text">{{ downloadPercent }}%</text>
+			</view>
+		</view>
 	</view>
+	<cover-view></cover-view>
 </template>
 
 <script>
@@ -35,6 +45,8 @@
 				current: 0,
 				batt: 0,
 				interval: 0,
+				showProgress: false, // 控制遮罩层显示
+				downloadPercent: 0 // 下载进度百分比
 			}
 		},
 		computed: {
@@ -125,10 +137,9 @@
 					uni.$once("currentReady", async () => {
 						if (bleInfo.ble_device.name.includes("DWL4")) {
 							bleInfo.isCsvLoading = true;
-							uni.showLoading({
-								title: "Downloading...",
-								mask: true
-							});
+							this.showProgress = true;
+							this.downloadPercent = 0;
+							uni.hideTabBar();
 							let csvData =
 								`Model,DWL-TILT-CDSK,
 SN,${bleInfo.ble_device.name.slice(5,)},,AppVersion,V1.0.0,
@@ -169,8 +180,9 @@ Date/Time,RECORD,Battery Voltage(V),Reading(R1),Reading(R2),Reading(R3),Reading(
 								});
 								let datetime = '20' + datetimeArr[0].match(/.{1,2}/g).join('-') + ' ' + datetimeArr[1].match(/.{1,2}/g).join(':');
 								let rowData = `${datetime},${index+1},${collectionDataArr.join(',')}`;
-								// console.log(index, '---', rowData);
+								console.log(index, '---', rowData);
 								csvData += '\r\n' + rowData;
+								this.downloadPercent = Number((index / this.current).toFixed(0));
 							}
 							richAlert.saveFile({
 								folder: this.path,
@@ -178,19 +190,19 @@ Date/Time,RECORD,Battery Voltage(V),Reading(R1),Reading(R2),Reading(R3),Reading(
 								data: csvData
 							}, result => {
 								// console.log("======", result);
-								uni.hideLoading();
 								uni.showToast({
 									title: "success.",
 									icon: "success"
 								})
 							});
 							bleInfo.isCsvLoading = false;
+							this.showProgress = false;
+							uni.showTabBar();
 						} else if (bleInfo.ble_device.name.includes("TILT")) {
 							bleInfo.isCsvLoading = true;
-							uni.showLoading({
-								title: "Downloading...",
-								mask: true
-							});
+							this.showProgress = true;
+							uni.hideTabBar();
+							this.downloadPercent = 0;
 							let csvData =
 								`Model,DWL-TILT-CDSK,
 SN,${bleInfo.ble_device.name.slice(5,)},,AppVersion,V1.0.0,
@@ -238,8 +250,9 @@ Date/Time,RECORD,Battery Voltage(V),Reading(R1),Reading(R2),Reading(R3),Reading(
 								});
 								let datetime = '20' + datetimeArr[0].match(/.{1,2}/g).join('-') + ' ' + datetimeArr[1].match(/.{1,2}/g).join(':');
 								let rowData = `${datetime},${index+1},${collectionDataArr.join(',')}`;
-								// console.log(index, '---', rowData);
+								console.log(index, '---', rowData);
 								csvData += '\r\n' + rowData;
+								this.downloadPercent = Number((index / this.current * 100).toFixed(0));
 							}
 							richAlert.saveFile({
 								folder: this.path,
@@ -247,13 +260,14 @@ Date/Time,RECORD,Battery Voltage(V),Reading(R1),Reading(R2),Reading(R3),Reading(
 								data: csvData
 							}, result => {
 								// console.log("======", result);
-								uni.hideLoading();
 								uni.showToast({
 									title: "success.",
 									icon: "success"
 								})
 							});
 							bleInfo.isCsvLoading = false;
+							this.showProgress = false;
+							uni.showTabBar();
 						}
 					});
 				} catch (error) {
@@ -284,5 +298,38 @@ Date/Time,RECORD,Battery Voltage(V),Reading(R1),Reading(R2),Reading(R3),Reading(
 		bottom: 0;
 		left: 0;
 		width: 100%;
+	}
+
+	/* 全屏遮罩层样式 */
+	.fullscreen-mask {
+		position: fixed;
+		top: 0;
+		left: 0;
+		width: 100%;
+		height: 100%;
+		background: rgba(0, 0, 0, 0.7);
+		/* 半透明黑色背景 */
+		display: flex;
+		justify-content: center;
+		align-items: center;
+		z-index: 9999;
+		/* 确保在最上层 */
+	}
+
+	/* 进度条容器样式 */
+	.progress-wrapper {
+		width: 70%;
+		background: #fff;
+		padding: 20px;
+		border-radius: 10px;
+		text-align: center;
+	}
+
+	/* 进度百分比文字 */
+	.progress-text {
+		display: block;
+		margin-top: 10px;
+		color: #333;
+		font-size: 16px;
 	}
 </style>
