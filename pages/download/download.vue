@@ -12,7 +12,10 @@
 			<input type="text" :value="path" style="height: 30px; border: 1px solid grey; background: lightgray; " disabled />
 		</view>
 		<view class="dw_btn">
-			<button type="primary" :disabled="btnDisabled" @click="getData">Download</button>
+			<view class="btn_group">
+				<button type="primary" :disabled="btnDisabled" @click="getData">Download</button>
+				<button type="warn" :disabled="btnDisabled" @click="wipeFlash">Wipe Flash</button>
+			</view>
 		</view>
 		<!-- 全屏遮罩层（覆盖所有内容，拦截操作） -->
 		<view v-if="showProgress" class="fullscreen-mask" @touchmove.stop.prevent="handlePrevent" @click.stop.prevent="handlePrevent">
@@ -68,6 +71,68 @@
 				let seconds = date.getSeconds().toString().padStart(2, '0');
 				return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
 			},
+			clear() {
+				bleInfo.ble_recv_data = "";
+				let cmdStr = "01 06 00 01 05 43 4C 46 53";
+				let modbusCmd = getModbusCmdBuf(cmdStr);
+				uni.writeBLECharacteristicValue({
+					deviceId: bleInfo.ble_device.deviceId,
+					serviceId: bleInfo.ble_service.uuid,
+					characteristicId: bleInfo.ble_send_characteristic.uuid,
+					value: modbusCmd,
+					success: (res) => {
+						uni.$once("dataArrive", () => {
+							if (bleInfo.ble_recv_data) {
+								if (crcCheck(bleInfo.ble_recv_data)) {
+									let data = bleInfo.ble_recv_data.slice(6, bleInfo.ble_recv_data.length - 4).match(/.{1,8}/g);
+									// console.log(data);
+									uni.showToast({
+										title: "success"
+									})
+								} else {
+									uni.showToast({
+										title: "failed",
+										icon: "error"
+									});
+									bleInfo.ble_recv_data = '';
+								}
+							}
+						});
+					},
+					fail: (err) => {
+						console.error("清除缓存失败: " + err.errMsg);
+						uni.showToast({
+							title: "failed",
+							icon: "error",
+							duration: 2000
+						})
+					}
+				});
+			},
+			wipeFlash() {
+				uni.showModal({
+					title: "Wipe Verification",
+					content: 'Please enter "OK" to confirm the operation!',
+					editable: true,
+					cancelText: "Cancel",
+					confirmText: "Confirm",
+					success: (res) => {
+						if (res.confirm) {
+							console.log('用户点击确定: ', res.content);
+							if (res.content.toUpperCase() === "OK") {
+								this.clear();
+							} else {
+								uni.showToast({
+									title: "failed",
+									icon: "error"
+								})
+							}
+						} else if (res.cancel) {
+							console.log('用户点击取消: ', res.content);
+						}
+					}
+				})
+			},
 			getInfo() {
 				bleInfo.ble_recv_data = "";
 				this.current = 0;
@@ -119,7 +184,6 @@
 									reject(res);
 								}
 							});
-
 						},
 						fail: (err) => {
 							reject(err); // 失败时抛出错误
@@ -135,13 +199,99 @@
 					const richAlert = uni.requireNativePlugin("DCloud-FilePicker");
 					this.getInfo();
 					uni.$once("currentReady", async () => {
-						if (bleInfo.ble_device.name.includes("DWL4")) {
-							bleInfo.isCsvLoading = true;
-							this.showProgress = true;
-							this.downloadPercent = 0;
-							uni.hideTabBar();
-							let csvData =
-								`Model,DWL-TILT-CDSK,
+						if (bleInfo.ble_device.name.includes("DWL4") || bleInfo.ble_device.name.includes("TILT")) {
+							await this.handleDeviceData(richAlert);
+						}
+					});
+				} catch (error) {
+					console.error("读取数据出错: ", error);
+				} finally {
+					bleInfo.ble_recv_data = "";
+				}
+			},
+			async handleDeviceData(richAlert) {
+				try {
+					bleInfo.isCsvLoading = true;
+					this.showProgress = true;
+					this.downloadPercent = 0;
+					uni.hideTabBar();
+
+					let deviceType = bleInfo.ble_device.name.includes("DWL4") ? "DWL4" : "TILT";
+					let csvData = this.generateCsvHeader(deviceType);
+
+					for (let index = 0; index < Math.floor((this.current / 2)); index++) {
+						bleInfo.ble_recv_data = "";
+						let cmdStr = `01 03 ${(0x000200 + index * 2).toString(16).padStart(6, '0')} 00 02`;
+						let modbusCmd = getModbusCmdBuf(cmdStr);
+						let data;
+
+						try {
+							data = await this.writeBLECharacteristicValueAsync({
+								deviceId: bleInfo.ble_device.deviceId,
+								serviceId: bleInfo.ble_service.uuid,
+								characteristicId: bleInfo.ble_send_characteristic.uuid,
+								value: modbusCmd
+							});
+						} catch (err) {
+							data = await this.writeBLECharacteristicValueAsync({
+								deviceId: bleInfo.ble_device.deviceId,
+								serviceId: bleInfo.ble_service.uuid,
+								characteristicId: bleInfo.ble_send_characteristic.uuid,
+								value: modbusCmd
+							});
+						} finally {
+							bleInfo.ble_recv_data = "";
+						}
+						let rowData = this.processData(deviceType, data, index);
+						console.log(`${index + 1} -------- ${rowData}`);
+						csvData += `\r\n${rowData}`;
+						this.downloadPercent = Number(((index + 1) / this.current * 100).toFixed(0));
+					}
+					if(this.current%2 > 0){
+						bleInfo.ble_recv_data = "";
+						let cmdStr = `01 03 ${(0x000200 + (this.current - 1)).toString(16).padStart(6, '0')} 00 01`;
+						let modbusCmd = getModbusCmdBuf(cmdStr);
+						let data;
+						
+						try {
+							data = await this.writeBLECharacteristicValueAsync({
+								deviceId: bleInfo.ble_device.deviceId,
+								serviceId: bleInfo.ble_service.uuid,
+								characteristicId: bleInfo.ble_send_characteristic.uuid,
+								value: modbusCmd
+							});
+						} catch (err) {
+							data = await this.writeBLECharacteristicValueAsync({
+								deviceId: bleInfo.ble_device.deviceId,
+								serviceId: bleInfo.ble_service.uuid,
+								characteristicId: bleInfo.ble_send_characteristic.uuid,
+								value: modbusCmd
+							});
+						} finally {
+							bleInfo.ble_recv_data = "";
+						}
+						let rowData = this.processData(deviceType, data, index);
+						console.log(`${index + 1} -------- ${rowData}`);
+						csvData += `\r\n${rowData}`;
+					}
+					await this.saveCsvFile(richAlert, csvData);
+					bleInfo.isCsvLoading = false;
+					this.showProgress = false;
+					uni.showTabBar();
+				} catch (error) {
+					console.error("处理设备数据时出错: ", error);
+					bleInfo.isCsvLoading = false;
+					this.showProgress = false;
+					uni.showTabBar();
+					uni.showToast({
+						title: "failed.",
+						icon: "error"
+					})
+				}
+			},
+			generateCsvHeader(deviceType) {
+				if (deviceType === "DWL4") {
+					return `Model,DWL-TILT-CDSK,
 SN,${bleInfo.ble_device.name.slice(5,)},,AppVersion,V1.0.0,
 Logging Interval,${this.interval}min,
 Download Time,${this.getDatetime()},
@@ -149,62 +299,8 @@ Battery Voltage(V),${this.batt},
 Number Of Records,${this.current},
 Date/Time,RECORD,Battery Voltage(V),Reading(R1),Reading(R2),Reading(R3),Reading(R4),Reading(R5),Reading(R6),Reading(R7),Reading(R8),Reading(R9),Reading(R10),Reading(R11),
 ,,V,Hz,Deg C,Hz,Deg C,Hz,Deg C,Hz,Deg C,Deg C,%RH,hPa`;
-							for (var index = 0; index < this.current; index++) {
-								bleInfo.ble_recv_data = "";
-								let cmdStr = `01 03 ${(0x000200+index).toString(16).padStart(6, '0')} 00 01`;
-								// console.log(index, '---', cmdStr);
-								let modbusCmd = getModbusCmdBuf(cmdStr);
-								let data;
-								try {
-									data = await this.writeBLECharacteristicValueAsync({
-										deviceId: bleInfo.ble_device.deviceId,
-										serviceId: bleInfo.ble_service.uuid,
-										characteristicId: bleInfo.ble_send_characteristic.uuid,
-										value: modbusCmd
-									});
-								} catch (err) {
-									// console.log(`retry index ${index}`);
-									data = await this.writeBLECharacteristicValueAsync({
-										deviceId: bleInfo.ble_device.deviceId,
-										serviceId: bleInfo.ble_service.uuid,
-										characteristicId: bleInfo.ble_send_characteristic.uuid,
-										value: modbusCmd
-									});
-								} finally {
-									bleInfo.ble_recv_data = "";
-								}
-								// console.log("++++++", data);
-								let datetimeArr = data.slice(0, 12).match(/.{1,6}/g);
-								let collectionDataArr = data.slice(12, ).match(/.{1,8}/g).map(byteStr2Float).map(num => {
-									return Number(num).toFixed(1);
-								});
-								let datetime = '20' + datetimeArr[0].match(/.{1,2}/g).join('-') + ' ' + datetimeArr[1].match(/.{1,2}/g).join(':');
-								let rowData = `${datetime},${index+1},${collectionDataArr.join(',')}`;
-								console.log(index, '---', rowData);
-								csvData += '\r\n' + rowData;
-								this.downloadPercent = Number((index / this.current).toFixed(0));
-							}
-							richAlert.saveFile({
-								folder: this.path,
-								fileName: bleInfo.ble_device.name + `_${this.getDatetime().match(/\d+/g).join('')}.csv`,
-								data: csvData
-							}, result => {
-								// console.log("======", result);
-								uni.showToast({
-									title: "success.",
-									icon: "success"
-								})
-							});
-							bleInfo.isCsvLoading = false;
-							this.showProgress = false;
-							uni.showTabBar();
-						} else if (bleInfo.ble_device.name.includes("TILT")) {
-							bleInfo.isCsvLoading = true;
-							this.showProgress = true;
-							uni.hideTabBar();
-							this.downloadPercent = 0;
-							let csvData =
-								`Model,DWL-TILT-CDSK,
+				} else if (deviceType === "TILT") {
+					return `Model,DWL-TILT-CDSK,
 SN,${bleInfo.ble_device.name.slice(5,)},,AppVersion,V1.0.0,
 Logging Interval,${this.interval}min,
 Download Time,${this.getDatetime()},
@@ -212,74 +308,56 @@ Battery Voltage(V),${this.batt},
 Number Of Records,${this.current},
 Date/Time,RECORD,Battery Voltage(V),Reading(R1),Reading(R2),Reading(R3),Reading(R4),Reading(R9),Reading(R10),Reading(R11)
 ,,V,Deg C,Y Axis,X Axis,Z Axis,Deg C,%RH,hPa`;
-							for (var index = 0; index < this.current; index++) {
-								bleInfo.ble_recv_data = "";
-								let cmdStr = `01 03 ${(0x000200+index).toString(16).padStart(6, '0')} 00 01`;
-								// console.log(index, '---', cmdStr);
-								let modbusCmd = getModbusCmdBuf(cmdStr);
-								let data;
-								try {
-									data = await this.writeBLECharacteristicValueAsync({
-										deviceId: bleInfo.ble_device.deviceId,
-										serviceId: bleInfo.ble_service.uuid,
-										characteristicId: bleInfo.ble_send_characteristic.uuid,
-										value: modbusCmd
-									});
-								} catch (err) {
-									// console.log(`retry index ${index}`);
-									data = await this.writeBLECharacteristicValueAsync({
-										deviceId: bleInfo.ble_device.deviceId,
-										serviceId: bleInfo.ble_service.uuid,
-										characteristicId: bleInfo.ble_send_characteristic.uuid,
-										value: modbusCmd
-									});
-								} finally {
-									bleInfo.ble_recv_data = "";
-								}
-								// console.log("++++++", data);
-								let datetimeArr = data.slice(0, 12).match(/.{1,6}/g);
-								let collectionDataArr = data.slice(12, ).match(/.{1,8}/g).map(byteStr2Float).map((num, index) => {
-									if (index < 1) {
-										return Number(num).toFixed(2);
-									} else if (2 <= index && index <= 4) {
-										return Number(num).toFixed(4);
-									} else {
-										return Number(num).toFixed(1);
-									}
-
-								});
-								let datetime = '20' + datetimeArr[0].match(/.{1,2}/g).join('-') + ' ' + datetimeArr[1].match(/.{1,2}/g).join(':');
-								let rowData = `${datetime},${index+1},${collectionDataArr.join(',')}`;
-								console.log(index, '---', rowData);
-								csvData += '\r\n' + rowData;
-								this.downloadPercent = Number((index / this.current * 100).toFixed(0));
-							}
-							richAlert.saveFile({
-								folder: this.path,
-								fileName: bleInfo.ble_device.name + `_${this.getDatetime().match(/\d+/g).join('')}.csv`,
-								data: csvData
-							}, result => {
-								// console.log("======", result);
-								uni.showToast({
-									title: "success.",
-									icon: "success"
-								})
-							});
-							bleInfo.isCsvLoading = false;
-							this.showProgress = false;
-							uni.showTabBar();
-						}
-					});
-				} catch (error) {
-					//TODO handle the exception
-					console.log("读取数据出错: ", error);
-				} finally {
-					bleInfo.ble_recv_data = "";
 				}
 			},
+			processData(deviceType, data, index) {
+				let datetimeArr = data.slice(0, 12).match(/.{1,6}/g);
+				let collectionDataArr = data.slice(12).match(/.{1,8}/g).map(byteStr2Float).map((num, index) => {
+					if (deviceType === "DWL4") {
+						if (index < 1) {
+							return Number(num).toFixed(2);
+						} else{
+							return Number(num).toFixed(1);
+						}
+					} else if (deviceType === "TILT") {
+						if (index < 1) {
+							return Number(num).toFixed(2);
+						} else if (2 <= index && index <= 4) {
+							return Number(num).toFixed(4);
+						} else {
+							return Number(num).toFixed(1);
+						}
+					}
+				});
+
+				let datetime = '20' + datetimeArr[0].match(/.{1,2}/g).join('-') + ' ' + datetimeArr[1].match(/.{1,2}/g).join(':');
+				return `${datetime},${index + 1},${collectionDataArr.join(',')}`;
+			},
+			async saveCsvFile(richAlert, csvData) {
+				return new Promise((resolve, reject) => {
+					richAlert.saveFile({
+						folder: this.path,
+						fileName: `${bleInfo.ble_device.name}_${this.getDatetime().match(/\d+/g).join('')}.csv`,
+						data: csvData
+					}, result => {
+						if (result) {
+							uni.showToast({
+								title: "success.",
+								icon: "success"
+							});
+							resolve();
+						} else {
+							reject(new Error("保存文件失败"));
+						}
+					});
+				});
+			},
+			handlePrevent() {
+
+			}
 		},
 		onShow() {
-			if (bleInfo.ble_connected) {
+			if (bleInfo.ble_connected && !this.showProgress) {
 				this.getInfo();
 			}
 		}
@@ -298,6 +376,10 @@ Date/Time,RECORD,Battery Voltage(V),Reading(R1),Reading(R2),Reading(R3),Reading(
 		bottom: 0;
 		left: 0;
 		width: 100%;
+	}
+
+	.btn_group {
+		display: flex;
 	}
 
 	/* 全屏遮罩层样式 */
@@ -331,5 +413,9 @@ Date/Time,RECORD,Battery Voltage(V),Reading(R1),Reading(R2),Reading(R3),Reading(
 		margin-top: 10px;
 		color: #333;
 		font-size: 16px;
+	}
+
+	button {
+		width: 100%;
 	}
 </style>

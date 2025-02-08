@@ -88,8 +88,6 @@
 		<view class="btn_group">
 			<button type="primary" :disabled="btnDisabled" @click="readConfigure">Read</button>
 			<button type="primary" :disabled="btnDisabled" @click="report">Report</button>
-			<!-- <button type="primary" @click="test">Read</button> -->
-			<!-- <button type="primary" @click="commitConfigure">Submit</button> -->
 			<button type="primary" :disabled="btnDisabled" @click="commitConfigure">Submit</button>
 		</view>
 	</view>
@@ -285,7 +283,7 @@
 			}
 		},
 		computed: {
-			isLogged(){
+			isLogged() {
 				return bleInfo.isLogged;
 			},
 			btnDisabled() {

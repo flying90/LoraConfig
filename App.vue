@@ -4,17 +4,10 @@
 
 		},
 		onShow: function() {
-			// let main = plus.android.runtimeMainActivity();
-			// let Launcher = plus.android.importClass("androidx.activity.result.ActivityResultLauncher");
-
-			// console.log(Launcher);
-			// console.log('=========++====++=+++===')
-			// console.log(main.getIntent());
-			// console.log((main.getIntent()).getData());
-			// console.log(plus.runtime.arguments)
+			
 		},
 		onHide: function() {
-			console.log('App Hide')
+			
 		}
 	}
 </script>
