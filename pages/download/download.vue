@@ -12,9 +12,11 @@
 			<input type="text" :value="path" style="height: 30px; border: 1px solid grey; background: lightgray; " disabled />
 		</view>
 		<view class="dw_btn">
+			<button type="default" @click="requestPermission">quanxian</button>
 			<view class="btn_group">
 				<button type="primary" :disabled="btnDisabled" @click="getData">Download</button>
 				<button type="warn" :disabled="btnDisabled" @click="wipeFlash">Wipe Flash</button>
+				<button type="default" @click="getfiles">test</button>
 			</view>
 		</view>
 		<!-- 全屏遮罩层（覆盖所有内容，拦截操作） -->
@@ -27,7 +29,6 @@
 			</view>
 		</view>
 	</view>
-	<cover-view></cover-view>
 </template>
 
 <script>
@@ -43,7 +44,7 @@
 	export default {
 		data() {
 			return {
-				path: 'Documents/LoraWAN',
+				path: '/Documents/LoraWAN',
 				total: 90000,
 				current: 0,
 				batt: 0,
@@ -61,6 +62,20 @@
 			}
 		},
 		methods: {
+			requestPermission() {
+				const filePicker = uni.requireNativePlugin("DCloud-FilePicker");
+				console.log("permission....");
+				filePicker.requestPermission();
+			},
+			getfiles() {
+				const filePicker = uni.requireNativePlugin("DCloud-FilePicker");
+				console.log("+++++get files++++++");
+				filePicker.getAllFiles({
+					folder: this.path
+				}, (res) => {
+					console.log(res);
+				});
+			},
 			getDatetime() {
 				let date = new Date();
 				let year = date.getFullYear();
@@ -196,11 +211,11 @@
 			},
 			async getData() {
 				try {
-					const richAlert = uni.requireNativePlugin("DCloud-FilePicker");
+					const filePicker = uni.requireNativePlugin("DCloud-FilePicker");
 					this.getInfo();
 					uni.$once("currentReady", async () => {
 						if (bleInfo.ble_device.name.includes("DWL4") || bleInfo.ble_device.name.includes("TILT")) {
-							await this.handleDeviceData(richAlert);
+							await this.handleDeviceData(filePicker);
 						}
 					});
 				} catch (error) {
@@ -209,7 +224,7 @@
 					bleInfo.ble_recv_data = "";
 				}
 			},
-			async handleDeviceData(richAlert) {
+			async handleDeviceData(filePicker) {
 				try {
 					bleInfo.isCsvLoading = true;
 					this.showProgress = true;
@@ -247,12 +262,12 @@
 						csvData += `\r\n${rowData}`;
 						this.downloadPercent = Number(((index + 1) / this.current * 100).toFixed(0));
 					}
-					if(this.current%2 > 0){
+					if (this.current % 2 > 0) {
 						bleInfo.ble_recv_data = "";
 						let cmdStr = `01 03 ${(0x000200 + (this.current - 1)).toString(16).padStart(6, '0')} 00 01`;
 						let modbusCmd = getModbusCmdBuf(cmdStr);
 						let data;
-						
+
 						try {
 							data = await this.writeBLECharacteristicValueAsync({
 								deviceId: bleInfo.ble_device.deviceId,
@@ -274,7 +289,7 @@
 						console.log(`${index + 1} -------- ${rowData}`);
 						csvData += `\r\n${rowData}`;
 					}
-					await this.saveCsvFile(richAlert, csvData);
+					await this.saveCsvFile(filePicker, csvData);
 					bleInfo.isCsvLoading = false;
 					this.showProgress = false;
 					uni.showTabBar();
@@ -316,7 +331,7 @@ Date/Time,RECORD,Battery Voltage(V),Reading(R1),Reading(R2),Reading(R3),Reading(
 					if (deviceType === "DWL4") {
 						if (index < 1) {
 							return Number(num).toFixed(2);
-						} else{
+						} else {
 							return Number(num).toFixed(1);
 						}
 					} else if (deviceType === "TILT") {
@@ -333,9 +348,9 @@ Date/Time,RECORD,Battery Voltage(V),Reading(R1),Reading(R2),Reading(R3),Reading(
 				let datetime = '20' + datetimeArr[0].match(/.{1,2}/g).join('-') + ' ' + datetimeArr[1].match(/.{1,2}/g).join(':');
 				return `${datetime},${index + 1},${collectionDataArr.join(',')}`;
 			},
-			async saveCsvFile(richAlert, csvData) {
+			async saveCsvFile(filePicker, csvData) {
 				return new Promise((resolve, reject) => {
-					richAlert.saveFile({
+					filePicker.saveFile({
 						folder: this.path,
 						fileName: `${bleInfo.ble_device.name}_${this.getDatetime().match(/\d+/g).join('')}.csv`,
 						data: csvData
