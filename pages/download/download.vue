@@ -12,11 +12,11 @@
 			<input type="text" :value="path" style="height: 30px; border: 1px solid grey; background: lightgray; " disabled />
 		</view>
 		<view class="dw_btn">
-			<button type="default" @click="requestPermission">quanxian</button>
+			<button type="default" @click="getTargetFile">test</button>
 			<view class="btn_group">
 				<button type="primary" :disabled="btnDisabled" @click="getData">Download</button>
 				<button type="warn" :disabled="btnDisabled" @click="wipeFlash">Wipe Flash</button>
-				<button type="default" @click="getfiles">test</button>
+				<button type="default" @click="readFile">test</button>
 			</view>
 		</view>
 		<!-- 全屏遮罩层（覆盖所有内容，拦截操作） -->
@@ -47,6 +47,8 @@
 				path: '/Documents/LoraWAN',
 				total: 90000,
 				current: 0,
+				readCount: 0,
+				targetFile: null,
 				batt: 0,
 				interval: 0,
 				showProgress: false, // 控制遮罩层显示
@@ -62,19 +64,32 @@
 			}
 		},
 		methods: {
-			requestPermission() {
+			getTargetFile() {
 				const filePicker = uni.requireNativePlugin("DCloud-FilePicker");
-				console.log("permission....");
-				filePicker.requestPermission();
-			},
-			getfiles() {
-				const filePicker = uni.requireNativePlugin("DCloud-FilePicker");
-				console.log("+++++get files++++++");
 				filePicker.getAllFiles({
 					folder: this.path
 				}, (res) => {
-					console.log(res);
+					this.targetFile = res.filter(fileName => fileName.includes(bleInfo.ble_device.name))[0];
+					filePicker.readFile({
+						path: `/sdcard/${this.path}/${this.targetFile}`
+					}, (res) => {
+						this.readCount = Number(res.res.match(/Number Of Records,(\d+)/)[1]);
+						console.log(`target file: ${this.targetFile}, read count: ${this.readCount}`);
+					});
 				});
+			},
+			readFile() {
+				const filePicker = uni.requireNativePlugin("DCloud-FilePicker");
+				console.log("readfile.");
+				filePicker.readFile({
+					path: `/sdcard/Documents/LoraWAN/TILT-240003_20250208111425.csv`
+				}, (res) => {
+					console.log("read file: +++ ", res);
+				});
+			},
+			requestPermission() {
+				const filePicker = uni.requireNativePlugin("DCloud-FilePicker");
+				filePicker.requestPermission();
 			},
 			getDatetime() {
 				let date = new Date();
@@ -233,10 +248,11 @@
 
 					let deviceType = bleInfo.ble_device.name.includes("DWL4") ? "DWL4" : "TILT";
 					let csvData = this.generateCsvHeader(deviceType);
-
-					for (let index = 0; index < Math.floor((this.current / 2)); index++) {
+					let increment = this.current - this.readCount;
+					
+					for (let index = 0; index < increment; index++) {
 						bleInfo.ble_recv_data = "";
-						let cmdStr = `01 03 ${(0x000200 + index * 2).toString(16).padStart(6, '0')} 00 02`;
+						let cmdStr = `01 03 ${(0x000200 + this.readCount + index).toString(16).padStart(6, '0')} 00 01`;
 						let modbusCmd = getModbusCmdBuf(cmdStr);
 						let data;
 
@@ -260,35 +276,9 @@
 						let rowData = this.processData(deviceType, data, index);
 						console.log(`${index + 1} -------- ${rowData}`);
 						csvData += `\r\n${rowData}`;
-						this.downloadPercent = Number(((index + 1) / this.current * 100).toFixed(0));
+						this.downloadPercent = Number((index / this.current * 100).toFixed(0));
 					}
-					if (this.current % 2 > 0) {
-						bleInfo.ble_recv_data = "";
-						let cmdStr = `01 03 ${(0x000200 + (this.current - 1)).toString(16).padStart(6, '0')} 00 01`;
-						let modbusCmd = getModbusCmdBuf(cmdStr);
-						let data;
 
-						try {
-							data = await this.writeBLECharacteristicValueAsync({
-								deviceId: bleInfo.ble_device.deviceId,
-								serviceId: bleInfo.ble_service.uuid,
-								characteristicId: bleInfo.ble_send_characteristic.uuid,
-								value: modbusCmd
-							});
-						} catch (err) {
-							data = await this.writeBLECharacteristicValueAsync({
-								deviceId: bleInfo.ble_device.deviceId,
-								serviceId: bleInfo.ble_service.uuid,
-								characteristicId: bleInfo.ble_send_characteristic.uuid,
-								value: modbusCmd
-							});
-						} finally {
-							bleInfo.ble_recv_data = "";
-						}
-						let rowData = this.processData(deviceType, data, index);
-						console.log(`${index + 1} -------- ${rowData}`);
-						csvData += `\r\n${rowData}`;
-					}
 					await this.saveCsvFile(filePicker, csvData);
 					bleInfo.isCsvLoading = false;
 					this.showProgress = false;
@@ -372,6 +362,7 @@ Date/Time,RECORD,Battery Voltage(V),Reading(R1),Reading(R2),Reading(R3),Reading(
 			}
 		},
 		onShow() {
+			this.requestPermission();
 			if (bleInfo.ble_connected && !this.showProgress) {
 				this.getInfo();
 			}
