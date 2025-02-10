@@ -12,11 +12,9 @@
 			<input type="text" :value="path" style="height: 30px; border: 1px solid grey; background: lightgray; " disabled />
 		</view>
 		<view class="dw_btn">
-			<button type="default" @click="getTargetFile">test</button>
 			<view class="btn_group">
 				<button type="primary" :disabled="btnDisabled" @click="getData">Download</button>
 				<button type="warn" :disabled="btnDisabled" @click="wipeFlash">Wipe Flash</button>
-				<button type="default" @click="readFile">test</button>
 			</view>
 		</view>
 		<!-- 全屏遮罩层（覆盖所有内容，拦截操作） -->
@@ -49,6 +47,7 @@
 				current: 0,
 				readCount: 0,
 				targetFile: null,
+				fileContent: null,
 				batt: 0,
 				interval: 0,
 				showProgress: false, // 控制遮罩层显示
@@ -69,22 +68,19 @@
 				filePicker.getAllFiles({
 					folder: this.path
 				}, (res) => {
-					this.targetFile = res.filter(fileName => fileName.includes(bleInfo.ble_device.name))[0];
-					filePicker.readFile({
-						path: `/sdcard/${this.path}/${this.targetFile}`
-					}, (res) => {
-						this.readCount = Number(res.res.match(/Number Of Records,(\d+)/)[1]);
-						console.log(`target file: ${this.targetFile}, read count: ${this.readCount}`);
-					});
-				});
-			},
-			readFile() {
-				const filePicker = uni.requireNativePlugin("DCloud-FilePicker");
-				console.log("readfile.");
-				filePicker.readFile({
-					path: `/sdcard/Documents/LoraWAN/TILT-240003_20250208111425.csv`
-				}, (res) => {
-					console.log("read file: +++ ", res);
+					if (res.length > 0) {
+						this.targetFile = res.filter(fileName => fileName.includes(bleInfo.ble_device.name))[0];
+						filePicker.readFile({
+							path: `/sdcard/${this.path}/${this.targetFile}`
+						}, (res) => {
+							if (res.res.length > 0) {
+								this.fileContent = res.res;
+								this.readCount = Number(res.res.match(/Number Of Records,(\d+)/)[1]);
+							} else {
+								console.log("file is empty.");
+							}
+						});
+					}
 				});
 			},
 			requestPermission() {
@@ -115,7 +111,6 @@
 							if (bleInfo.ble_recv_data) {
 								if (crcCheck(bleInfo.ble_recv_data)) {
 									let data = bleInfo.ble_recv_data.slice(6, bleInfo.ble_recv_data.length - 4).match(/.{1,8}/g);
-									// console.log(data);
 									uni.showToast({
 										title: "success"
 									})
@@ -180,7 +175,7 @@
 								this.current = byteStr2Int(data[0]);
 								this.batt = byteStr2Int(data[3]) / 100;
 								this.interval = byteStr2Float(data[15]);
-								console.log(this.current, this.batt, this.interval);
+								// console.log(this.current, this.batt, this.interval);
 								bleInfo.ble_recv_data = "";
 								setTimeout(() => {
 									uni.$emit("currentReady");
@@ -228,6 +223,7 @@
 				try {
 					const filePicker = uni.requireNativePlugin("DCloud-FilePicker");
 					this.getInfo();
+					this.getTargetFile();
 					uni.$once("currentReady", async () => {
 						if (bleInfo.ble_device.name.includes("DWL4") || bleInfo.ble_device.name.includes("TILT")) {
 							await this.handleDeviceData(filePicker);
@@ -249,7 +245,7 @@
 					let deviceType = bleInfo.ble_device.name.includes("DWL4") ? "DWL4" : "TILT";
 					let csvData = this.generateCsvHeader(deviceType);
 					let increment = this.current - this.readCount;
-					
+
 					for (let index = 0; index < increment; index++) {
 						bleInfo.ble_recv_data = "";
 						let cmdStr = `01 03 ${(0x000200 + this.readCount + index).toString(16).padStart(6, '0')} 00 01`;
@@ -273,30 +269,42 @@
 						} finally {
 							bleInfo.ble_recv_data = "";
 						}
-						let rowData = this.processData(deviceType, data, index);
-						console.log(`${index + 1} -------- ${rowData}`);
-						csvData += `\r\n${rowData}`;
+						let rowData = this.processData(deviceType, data, index, this.readCount);
+						// console.log(`${index + 1} -------- ${rowData}`);
+						csvData += `\n${rowData}`;
 						this.downloadPercent = Number((index / this.current * 100).toFixed(0));
 					}
 
-					await this.saveCsvFile(filePicker, csvData);
-					bleInfo.isCsvLoading = false;
-					this.showProgress = false;
-					uni.showTabBar();
+					this.saveCsvFile(filePicker, csvData);
+					uni.showToast({
+						title: "success.",
+						duration: 1600
+					});
 				} catch (error) {
 					console.error("处理设备数据时出错: ", error);
-					bleInfo.isCsvLoading = false;
-					this.showProgress = false;
-					uni.showTabBar();
 					uni.showToast({
 						title: "failed.",
 						icon: "error"
 					})
+				} finally {
+					bleInfo.isCsvLoading = false;
+					this.showProgress = false;
+					setTimeout(() => {
+						uni.showTabBar({
+							success: (res) => {
+								console.log("show tab bar success: ", res);
+							},
+							fail: (res) => {
+								console.log("show tab bar failed: ", res);
+							}
+						});
+					}, 2000);
 				}
 			},
 			generateCsvHeader(deviceType) {
 				if (deviceType === "DWL4") {
-					return `Model,DWL-TILT-CDSK,
+					if (this.fileContent === null || this.fileContent === undefined) {
+						return `Model,DWL-TILT-CDSK,
 SN,${bleInfo.ble_device.name.slice(5,)},,AppVersion,V1.0.0,
 Logging Interval,${this.interval}min,
 Download Time,${this.getDatetime()},
@@ -304,8 +312,13 @@ Battery Voltage(V),${this.batt},
 Number Of Records,${this.current},
 Date/Time,RECORD,Battery Voltage(V),Reading(R1),Reading(R2),Reading(R3),Reading(R4),Reading(R5),Reading(R6),Reading(R7),Reading(R8),Reading(R9),Reading(R10),Reading(R11),
 ,,V,Hz,Deg C,Hz,Deg C,Hz,Deg C,Hz,Deg C,Deg C,%RH,hPa`;
+					} else {
+						let data = this.fileContent.replace(this.fileContent.match(/Number Of Records,(\d+)/)[0], `Number Of Records,${this.current}`);
+						return data.slice(0, data.length - 1);
+					}
 				} else if (deviceType === "TILT") {
-					return `Model,DWL-TILT-CDSK,
+					if (this.fileContent === null || this.fileContent === undefined) {
+						return `Model,DWL-TILT-CDSK,
 SN,${bleInfo.ble_device.name.slice(5,)},,AppVersion,V1.0.0,
 Logging Interval,${this.interval}min,
 Download Time,${this.getDatetime()},
@@ -313,9 +326,13 @@ Battery Voltage(V),${this.batt},
 Number Of Records,${this.current},
 Date/Time,RECORD,Battery Voltage(V),Reading(R1),Reading(R2),Reading(R3),Reading(R4),Reading(R9),Reading(R10),Reading(R11)
 ,,V,Deg C,Y Axis,X Axis,Z Axis,Deg C,%RH,hPa`;
+					} else {
+						let data = this.fileContent.replace(this.fileContent.match(/Number Of Records,(\d+)/)[0], `Number Of Records,${this.current}`);
+						return data.slice(0, data.length - 1);
+					}
 				}
 			},
-			processData(deviceType, data, index) {
+			processData(deviceType, data, index, readCount) {
 				let datetimeArr = data.slice(0, 12).match(/.{1,6}/g);
 				let collectionDataArr = data.slice(12).match(/.{1,8}/g).map(byteStr2Float).map((num, index) => {
 					if (deviceType === "DWL4") {
@@ -336,25 +353,22 @@ Date/Time,RECORD,Battery Voltage(V),Reading(R1),Reading(R2),Reading(R3),Reading(
 				});
 
 				let datetime = '20' + datetimeArr[0].match(/.{1,2}/g).join('-') + ' ' + datetimeArr[1].match(/.{1,2}/g).join(':');
-				return `${datetime},${index + 1},${collectionDataArr.join(',')}`;
+				return `${datetime},${index + readCount +  1},${collectionDataArr.join(',')}`;
 			},
-			async saveCsvFile(filePicker, csvData) {
-				return new Promise((resolve, reject) => {
-					filePicker.saveFile({
-						folder: this.path,
-						fileName: `${bleInfo.ble_device.name}_${this.getDatetime().match(/\d+/g).join('')}.csv`,
-						data: csvData
-					}, result => {
-						if (result) {
-							uni.showToast({
-								title: "success.",
-								icon: "success"
-							});
-							resolve();
-						} else {
-							reject(new Error("保存文件失败"));
-						}
-					});
+			saveCsvFile(filePicker, csvData) {
+				filePicker.saveFile({
+					folder: this.path,
+					fileName: `${bleInfo.ble_device.name}.csv`,
+					data: csvData,
+					overwrite: true
+				}, (res) => {
+					if (res.length > 0) {
+						uni.showToast({
+							title: "failed.",
+							icon: "error",
+							duration: 1500
+						});
+					}
 				});
 			},
 			handlePrevent() {
@@ -366,13 +380,14 @@ Date/Time,RECORD,Battery Voltage(V),Reading(R1),Reading(R2),Reading(R3),Reading(
 			if (bleInfo.ble_connected && !this.showProgress) {
 				this.getInfo();
 			}
+			// console.log("onshow: ", this.readCount, this.targetFile, this.fileContent);
 		}
 	}
 </script>
 
 <style>
 	.container {
-		margin: 10px;
+		padding: 10px;
 		font-size: 14px;
 		line-height: 24px;
 	}

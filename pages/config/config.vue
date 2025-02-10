@@ -802,7 +802,7 @@
 
 <style>
 	.container {
-		margin: 10px;
+		padding: 10px;
 		font-size: 14px;
 		line-height: 24px;
 	}
