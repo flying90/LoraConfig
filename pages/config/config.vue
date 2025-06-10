@@ -14,7 +14,7 @@
 						<text class="config_label">{{config.name}}{{config.unit?`\n(${config.unit})`: ""}}: </text>
 						<uni-easyinput type="text" v-model="datetime" :disabled="!config.editable" class="config_value"></uni-easyinput>
 						<label>
-							<checkbox :checked="datetimeConfig" />
+							<checkbox :checked="datetimeConfig" @click="datetimeConfig = !datetimeConfig" />
 						</label>
 					</view>
 					<view v-else-if="index === 2">
@@ -569,7 +569,9 @@
 								commonConfigData[7] = int2ByteStr(this.commonConfigure[3].value);
 								break;
 							case 10:
-								let channelsArray = [...this.commonConfigure[4].ch0_31_value.split(','), ...this.commonConfigure[4].ch32_63_value.split(','), ...this.commonConfigure[4].ch64_71_value.split(',')]
+								let channelsArray = [...this.commonConfigure[4].ch0_31_value.split(','), ...this.commonConfigure[4].ch32_63_value.split(','), ...this.commonConfigure[4].ch64_71_value
+										.split(',')
+									]
 									.filter(item => item !== "")
 									.map(Number);
 								// console.log("channelsArray --->", channelsArray);
@@ -795,7 +797,9 @@
 
 		},
 		onShow() {
-
+			if (bleInfo.ble_connected) {
+				this.readConfigure();
+			}
 		}
 	}
 </script>

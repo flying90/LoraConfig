@@ -4,7 +4,8 @@
 
 		},
 		onShow: function() {
-			
+			// let offset = new Date().getTimezoneOffset();
+			// console.log('当前时区与UTC的时间差（单位：分钟）：', offset);
 		},
 		onHide: function() {
 			

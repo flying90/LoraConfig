@@ -1,6 +1,6 @@
 <template>
 	<view class="container">
-		<image src="@/static/image/log.png" style="width: 100%; height: 30px;" mode="aspectFit" @longpress="handleLogin"></image>
+		<image src="@/static/image/log.jpg" style="width: 100%; height: 30px;" mode="aspectFit" @longpress="handleLogin"></image>
 		<!-- 登录弹窗 -->
 		<uni-popup ref="loginPopup" type="center">
 			<view class="popup-content">

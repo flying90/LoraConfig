@@ -331,6 +331,11 @@
 					}
 				});
 			}
+		},
+		onShow() {
+			if (bleInfo.ble_connected) {
+				this.readRealtimeData();
+			}
 		}
 	}
 </script>
