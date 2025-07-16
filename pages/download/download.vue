@@ -212,11 +212,13 @@
 				filePicker.getAllFiles({
 					folder: this.path
 				}, (res) => {
+					console.log("Get Target File: ", res);
 					if (res.length > 0) {
-						this.targetFile = res.filter(fileName => fileName.includes(bleInfo.ble_device.text))[0];
+						this.targetFile = res.filter(fileName => fileName.includes(bleInfo.ble_device.name))[0];
 						filePicker.readFile({
 							path: `/sdcard/${this.path}/${this.targetFile}`
 						}, (res) => {
+							console.log("Filter File Content:", res);
 							if (res.res.length > 0) {
 								this.fileContent = res.res;
 								this.readCount = Number(res.res.match(/Number Of Records,(\d+)/)[1]);
@@ -525,7 +527,7 @@ Date/Time,RECORD,Battery Voltage(V),Reading(R1),Reading(R2),Reading(R3),Reading(
 				// console.log(this.offset)
 				this.selectedIndex = this.timeZones.findIndex(zone => zone.value === e);
 				// console.log('选中的时区:', this.timeZones[this.selectedIndex].text);
-				this.convertedTime = this.convertToTimeZoneWithoutIntl(this.deviceUTC,this.timeZones[this.selectedIndex].text);
+				// this.convertedTime = this.convertToTimeZoneWithoutIntl(this.deviceUTC,this.timeZones[this.selectedIndex].text);
 			},
 			convertToTimeZoneWithoutIntl(dateStr, targetUtcOffsetStr, options = {}) {
 			    const defaultOptions = {
@@ -611,12 +613,15 @@ Date/Time,RECORD,Battery Voltage(V),Reading(R1),Reading(R2),Reading(R3),Reading(
 			    }
 			}
 		},
+		onLoad() {
+			this.getTimeZone();
+		},
 		onShow() {
 			this.requestPermission();
 			if (bleInfo.ble_connected && !this.showProgress) {
 				this.getInfo();
 			}
-			this.getTimeZone();
+			
 			// console.log("onshow: ", this.readCount, this.targetFile, this.fileContent);
 		},
 	}
