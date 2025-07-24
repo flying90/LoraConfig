@@ -1,6 +1,7 @@
 <template>
 	<view class="container">
-		<image src="@/static/image/log.jpg" style="width: 100%; height: 30px;" mode="aspectFit" @longpress="handleLogin"></image>
+		<text class="logo" @longpress="handleLogin">Ground IQ Pte Ltd</text>
+		<!-- <image src="@/static/image/log.jpg" style="width: 100%; height: 30px;" mode="aspectFit" @longpress="handleLogin"></image> -->
 		<!-- 登录弹窗 -->
 		<uni-popup ref="loginPopup" type="center">
 			<view class="popup-content">
@@ -403,7 +404,12 @@
 		font-size: 14px;
 		line-height: 24px;
 	}
-
+	.logo{
+		display: block;
+		height: 30px;
+		text-align: center;
+		font-size: 26px;
+	}
 	.divider {
 		height: 1px;
 		background-color: #ddd;
