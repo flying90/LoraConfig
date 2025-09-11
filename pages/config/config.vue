@@ -332,7 +332,7 @@
 				let year = date.getFullYear();
 				let month = (date.getMonth() + 1).toString().padStart(2, '0');
 				let day = date.getDate().toString().padStart(2, '0');
-				return `00${year}${month}${day}`;
+				return `${year}${month}${day}`;
 			},
 			report() {
 				bleInfo.ble_recv_data = "";
@@ -561,6 +561,7 @@
 									commonConfigData[1] = "00000000";
 									commonConfigData[2] = "00000000";
 								}
+								console.log(commonConfigData[1] + "-" + commonConfigData[2]);
 								break;
 							case 3:
 								commonConfigData[3] = int2ByteStr(this.commonConfigure[2].value);

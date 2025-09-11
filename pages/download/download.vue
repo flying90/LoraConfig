@@ -457,7 +457,7 @@ Download Time,${this.getDatetime()},
 Battery Voltage(V),${this.batt},
 Number Of Records,${this.current},
 Date/Time,RECORD,Battery Voltage(V),Reading(R1),Reading(R2),Reading(R3),Reading(R4),Reading(R5),Reading(R6),Reading(R7),Reading(R8),Reading(R9),Reading(R10),Reading(R11),
-,,V,Hz,Deg C,Hz,Deg C,Hz,Deg C,Hz,Deg C,Deg C,%RH,hPa`;
+,,V,Hz,DegC,Hz,DegC,Hz,DegC,Hz,DegC,DegC,%RH,hPa`;
 					} else {
 						let data = this.fileContent.replace(this.fileContent.match(/Number Of Records,(\d+)/)[0], `Number Of Records,${this.current}`);
 						return data.slice(0, data.length - 1);
@@ -471,7 +471,7 @@ Download Time,${this.getDatetime()},
 Battery Voltage(V),${this.batt},
 Number Of Records,${this.current},
 Date/Time,RECORD,Battery Voltage(V),Reading(R1),Reading(R2),Reading(R3),Reading(R4),Reading(R9),Reading(R10),Reading(R11)
-,,V,Deg C,Y Axis,X Axis,Z Axis,Deg C,%RH,hPa`;
+,,V,DegC,X Axis,Y Axis,Z Axis,DegC,%RH,hPa`;
 					} else {
 						let data = this.fileContent.replace(this.fileContent.match(/Number Of Records,(\d+)/)[0], `Number Of Records,${this.current}`);
 						return data.slice(0, data.length - 1);
