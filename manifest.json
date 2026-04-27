@@ -2,8 +2,8 @@
     "name" : "LoraConfig",
     "appid" : "__UNI__74A6DA8",
     "description" : "Configure the parameters of the LoRaWAN device via Bluetooth.",
-    "versionName" : "1.0.3",
-    "versionCode" : 103,
+    "versionName" : "1.0.5",
+    "versionCode" : 105,
     "transformPx" : false,
     "app-plus" : {
         /* 5+App特有相关 */

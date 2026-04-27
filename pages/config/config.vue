@@ -547,7 +547,7 @@
 					"30313823"
 				];
 				let dataStr = "";
-				if (this.cycleChecked && this.loraChannelsChecked && this.devEUIChecked && this.appKeyChecked && this.fportChecked) {
+				if (this.snChecked && this.cycleChecked && this.loraChannelsChecked && this.devEUIChecked && this.appKeyChecked && this.fportChecked) {
 					for (let i = 0; i < commonConfigData.length; i++) {
 						switch (i) {
 							case 0:
