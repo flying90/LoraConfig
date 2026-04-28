@@ -321,17 +321,19 @@
 		},
 		methods: {
 			getCurrentTime() {
+				// 返回零时区(UTC)时间，避免设备所在时区影响下发到节点的时间
 				let date = new Date();
-				let hours = date.getHours().toString().padStart(2, '0');
-				let minutes = date.getMinutes().toString().padStart(2, '0');
-				let seconds = date.getSeconds().toString().padStart(2, '0');
+				let hours = date.getUTCHours().toString().padStart(2, '0');
+				let minutes = date.getUTCMinutes().toString().padStart(2, '0');
+				let seconds = date.getUTCSeconds().toString().padStart(2, '0');
 				return `00${hours}${minutes}${seconds}`;
 			},
 			getCurrentDate() {
+				// 返回零时区(UTC)日期，与 getCurrentTime 保持一致
 				let date = new Date();
-				let year = date.getFullYear();
-				let month = (date.getMonth() + 1).toString().padStart(2, '0');
-				let day = date.getDate().toString().padStart(2, '0');
+				let year = date.getUTCFullYear();
+				let month = (date.getUTCMonth() + 1).toString().padStart(2, '0');
+				let day = date.getUTCDate().toString().padStart(2, '0');
 				return `${year}${month}${day}`;
 			},
 			report() {
