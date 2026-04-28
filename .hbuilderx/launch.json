@@ -2,6 +2,9 @@
     "version" : "1.0",
     "configurations" : [
         {
+            "customPlaygroundType" : "local",
+            "localRepoPath" : "E:/sunkong/LoraConfig",
+            "packageName" : "uni.app.UNI74A6DA8",
             "playground" : "custom",
             "type" : "uni-app:app-android"
         }
