@@ -8,18 +8,15 @@
 				</view>
 				<view class="data_cell" v-for="(comChannel, comIndex) in commonChannels" :key="comIndex">
 					<text class="data_label">{{comChannel.channel_name}}:</text>
-					<text class="data_value">{{comChannel.value}}</text>
-					<text class="data_unit">{{comChannel.unit}}</text>
+					<text class="data_value">{{comChannel.value}} {{comChannel.unit}}</text>
 				</view>
 				<view class="data_cell" v-if="deviceName.includes('DWL4')" v-for="(dwl4Channel, dwl4Index) in dwl4Channels" :key="dwl4Index+9">
 					<text class="data_label">{{dwl4Channel.channel_name}}: </text>
-					<text class="data_value">{{dwl4Channel.value}} </text>
-					<text class="data_unit">{{dwl4Channel.unit}}</text>
+					<text class="data_value">{{dwl4Channel.value}} {{dwl4Channel.unit}}</text>
 				</view>
 				<view class="data_cell" v-else-if="deviceName.includes('TILT')" v-for="(tiltChannel, tiltIndex) in tiltChannels" :key="tiltIndex+9">
 					<text class="data_label">{{tiltChannel.channel_name}}: </text>
-					<text class="data_value">{{tiltChannel.value}} </text>
-					<text class="data_unit">{{tiltChannel.unit}}</text>
+					<text class="data_value">{{tiltChannel.value}} {{tiltChannel.unit}}</text>
 				</view>
 			</view>
 		</scroll-view>
@@ -87,7 +84,17 @@
 						channel_name: "Lora Signal Strength",
 						value: 0,
 						unit: " dBm"
-					}
+					},
+					{
+						channel_name: "Hardware Version",
+						value: 0.0,
+						unit: ""
+					},
+					{
+						channel_name: "Software Version",
+						value: 0.0,
+						unit: ""
+					},
 				],
 				dwl4Channels: [{
 						channel_name: "Frequency of CH1",
@@ -352,24 +359,33 @@
 	}
 
 	.data_cell {
-		/* height: 35px;
-		border: 1px solid lightgrey;
-		margin: 8px 0; */
+		height: 48px;
 		display: flex;
 		flex-direction: row;
-		border: 1px solid lightgray;
 		margin: 8px 0;
 		align-items: center;
 	}
 
 	.data_label {
 		display: inline-block;
-		font-size: 18px;
-		width: 215px;
+		width: 210px;
+		height: 20px;
+		color: #ADAFC1;
+		font-size: 14px;
 	}
 
 	.data_value {
-		font-size: 20px;
+		display: flex;
+		flex-direction: row;
+		align-items: center;
+		width: 100%;
+		height: 40px;
+		color: #FFFFFF;
+		background: #1E1E26;
+		font-weight: 600;
+		font-size: 14px;
+		border-radius: 10px;
+		padding-left: 16px;
 	}
 
 	.data_unit {
@@ -379,12 +395,24 @@
 
 	.time_label {
 		display: inline-block;
-		font-size: 18px;
-		margin-right: 20px;
+		width: 210px;
+		height: 20px;
+		color: #ADAFC1;
+		font-size: 14px;
 	}
 
 	.read_time {
-		font-size: 16px;
+		display: flex;
+		flex-direction: row;
+		align-items: center;
+		width: 100%;
+		height: 40px;
+		color: #FFFFFF;
+		background: #1E1E26;
+		font-weight: 600;
+		font-size: 14px;
+		border-radius: 10px;
+		padding-left: 16px;
 	}
 
 	.read_btn {
@@ -392,5 +420,9 @@
 		position: fixed;
 		left: 0;
 		bottom: 0;
+	}
+	
+	button {
+		margin: 16px;
 	}
 </style>

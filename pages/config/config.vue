@@ -6,21 +6,21 @@
 					<view v-if="index === 0">
 						<view class="config_cell">
 							<text class="config_label">{{config.name}}{{config.unit?`\n(${config.unit})`: ""}}: </text>
-							<uni-easyinput type="number" v-model="config.value" :disabled="!config.editable" class="config_value" @change="cycleChange"></uni-easyinput>
+							<input type="number" v-model="config.value" :disabled="!config.editable" class="config_value" @change="cycleChange"></input>
 						</view>
 						<text v-if="!cycleChecked" class="warning">collection cycle verification failed</text>
 					</view>
 					<view v-else-if="index === 1" class="config_cell">
-						<text class="config_label">{{config.name}}{{config.unit?`\n(${config.unit})`: ""}}: </text>
-						<uni-easyinput type="text" v-model="datetime" :disabled="!config.editable" class="config_value"></uni-easyinput>
-						<label>
+						<text class="config_label">{{config.name}}{{config.unit?`(${config.unit})`: ""}}: </text>
+						<view class="time-comtainer">
+							<input type="text" v-model="datetime" :disabled="!config.editable" class="config_value" style="width: 100%;" />
 							<checkbox :checked="datetimeConfig" @click="datetimeConfig = !datetimeConfig" />
-						</label>
+						</view>
 					</view>
 					<view v-else-if="index === 2">
 						<view class="config_cell">
 							<text class="config_label">{{config.name}}{{config.unit?`\n(${config.unit})`: ""}}: </text>
-							<uni-easyinput type="number" v-model="config.value" :disabled="!config.editable" class="config_value" @change="deviceSNChange"></uni-easyinput>
+							<input type="number" v-model="config.value" :disabled="!config.editable" class="config_value" @change="deviceSNChange"></input>
 						</view>
 						<text v-if="!snChecked" class="warning">device SN verification failed</text>
 					</view>
@@ -31,30 +31,36 @@
 					<view v-else-if="index === 4">
 						<view class="config_cell">
 							<text class="config_label">{{config.name}}{{config.unit?`\n(${config.unit})`: ""}}: </text>
-							<uni-easyinput type="text" :value="loraChannels" :disabled="!isLogged" class="config_value" @change="loraChannelsChange" @clear="loraChannelsClear"></uni-easyinput>
+							<input type="text" :value="loraChannels" :disabled="!isLogged" class="config_value" @change="loraChannelsChange" @clear="loraChannelsClear"></input>
 						</view>
 						<text v-if="!loraChannelsChecked" class="warning">channels verification failed</text>
 					</view>
 					<view v-else-if="index == 5">
 						<view class="config_cell">
 							<text class="config_label">{{config.name}}{{config.unit?`\n(${config.unit})`: ""}}: </text>
-							<uni-easyinput type="number" v-model="config.value" :disabled="!config.editable" class="config_value" @change="fportChange"></uni-easyinput>
+							<input type="number" v-model="config.value" :disabled="!config.editable" class="config_value" @change="fportChange"></input>
 						</view>
 						<text v-if="!fportChecked" class="warning">fport verification failed</text>
 					</view>
 					<view v-else-if="index === 6">
 						<view class="config_cell">
 							<text class="config_label">{{config.name}}{{config.unit?`\n(${config.unit})`: ""}}: </text>
-							<uni-easyinput type="text" :value="devEUI" :disabled="!config.editable" class="config_value" @change="devEUIChange"></uni-easyinput>
+							<input type="text" :value="devEUI" :disabled="!config.editable" class="config_value" @change="devEUIChange"></input>
 						</view>
 						<text v-if="!devEUIChecked" class="warning">devEUI verification failed</text>
 					</view>
 					<view v-else-if="index === 7">
 						<view class="config_cell">
 							<text class="config_label">{{config.name}}{{config.unit?`\n(${config.unit})`: ""}}: </text>
-							<uni-easyinput type="text" :value="appKey" :disabled="!config.editable" class="config_value" @change="appKeyChange"></uni-easyinput>
+							<input type="text" :value="appKey" :disabled="!config.editable" class="config_value" @change="appKeyChange"></input>
 						</view>
 						<text v-if="!appKeyChecked" class="warning">appKey verification failed</text>
+					</view>
+					<view v-else-if="index === 8">
+						<view class="config_cell">
+							<text class="config_label">{{config.name}}{{config.unit?`\n(${config.unit})`: ""}}: </text>
+							<input type="number" v-model="config.value" :disabled="!config.editable" class="config_value" @change="fportChange"></input>
+						</view>
 					</view>
 				</view>
 				<view v-if="devName.includes('DWL4')">
@@ -65,7 +71,7 @@
 						</view>
 						<view v-else class="config_cell">
 							<text class="config_label">{{config.name}}{{config.unit?`\n(${config.unit})`: ""}}: </text>
-							<uni-easyinput type="number" v-model="config.value" :disabled="!config.editable" class="config_value"></uni-easyinput>
+							<input type="number" v-model="config.value" :disabled="!config.editable" class="config_value"></input>
 						</view>
 					</view>
 				</view>
@@ -77,7 +83,7 @@
 						</view>
 						<view v-else class="config_cell">
 							<text class="config_label">{{config.name}}{{config.unit?`\n(${config.unit})`: ""}}: </text>
-							<uni-easyinput type="number" v-model="config.value" :disabled="!config.editable" class="config_value"></uni-easyinput>
+							<input type="number" v-model="config.value" :disabled="!config.editable" class="config_value"></input>
 						</view>
 					</view>
 				</view>
@@ -203,6 +209,12 @@
 						value_2: "696e6b4c",
 						value_3: "6f526132",
 						value_4: "30313823",
+						editable: true,
+						unit: ""
+					},
+					{
+						name: "BT PIN",
+						value: "12345678",
 						editable: true,
 						unit: ""
 					}
@@ -819,21 +831,28 @@
 	}
 
 	.config_cell {
-		display: flex;
-		flex-direction: row;
-		border: 1px solid lightgray;
+		color: #ADAFC1;
 		margin: 12px 0;
-		align-items: center;
 	}
 
 	.config_label {
 		display: flex;
-		width: 150px;
 		font-size: 18px;
 	}
-
+	
+	.time-comtainer {
+		display: flex;
+		flex-direction: row;
+		align-items: baseline;
+	}
+	
 	.config_value {
-		font-size: 18px;
+		color: #FFFFFF;
+		background: #1E1E26;
+		height: 46px;
+		margin-top: 10px;
+		padding-left: 16px;
+		border-radius: 10px;
 	}
 
 	.btn_group {
@@ -854,5 +873,6 @@
 
 	button {
 		width: 100%;
+		margin: 8px;
 	}
 </style>

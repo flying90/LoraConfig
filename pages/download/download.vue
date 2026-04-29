@@ -1,21 +1,47 @@
 <template>
 	<view class="container">
-		<text style="font-size: 20px;">Capacity Usage:</text>
-		<progress active="true" :percent="percent" show-info border-radius="3" stroke-width="20" />
-		<view class="" style="margin-top: 5px;">
-			<text style="color: black; font-size: 18px;">{{current}}</text>
-			<text style="font-size: 18px;"> / </text>
-			<text style="color: gray; font-size: 18px;">{{total}}</text>
+		<view class="usage-container">
+			<text style="font-size: 14px; color: #ADAFC1;">Capacity Usage:</text>
+			<view>
+				<text style="color: #FFFFFF;">{{current}}</text>
+				<text style="color: #ADAFC1;"> / </text>
+				<text style="color: #ADAFC1;">{{total}}</text>
+			</view>
+			<view style="color: #ADAFC1;">{{percent}}%</view>
 		</view>
-		<view class="" style="margin-top: 20px;">
-			<text style="font-size: 20px;">Download Path: </text>
-			<input type="text" :value="path" style="height: 30px; border: 1px solid grey; background: lightgray; " disabled />
+		<progress active="true" :percent="percent" stroke-width="10" style="margin: 10px 16px;" />
+		<view class="download-container">
+			<text style="font-size: 14px; margin-top: 14px; margin-left: 12px; color: #ADAFC1;">Download Path: </text>
+			<input type="text" :value="path" style="height: 28px; font-size: 14px; margin: 10px 12px; color: #5C5E6F;" disabled />
+			<!-- <view class="dw_btn">
+				<view class="btn_group">
+					<button plain :disabled="btnDisabled" @click="wipeFlash" style="background: #1E1E26; border-color: #1E73FE; color: #1E73FE;">Wipe Flash</button>
+					<button type="primary" :disabled="btnDisabled" @click="getData">Download</button>
+				</view>
+			</view> -->
 		</view>
-		<view style="margin-top: 20px;">
-			<!-- 时区选择 -->
-			<text style="font-size: 20px;">Time Zone: </text>
-			<uni-data-select v-model="offset" :localdata="timeZones" @change="onTimezoneChange" :clear="false"></uni-data-select>
+		<view class="timezone-container">
+			<view style="margin-top: 20px;">
+				<!-- 时区选择 -->
+				<text style="font-size: 14px; margin-top: 14px; margin-left: 12px; color: #ADAFC1;">Time Zone: </text>
+				<uni-data-select v-model="offset" :localdata="timeZones" @change="onTimezoneChange" :clear="false"
+					style="width: 80vw; margin-top: 14px; margin-left: 12px; color: #ADAFC1;"></uni-data-select>
+			</view>
 		</view>
+		<label class="checkbox">
+			<checkbox value="r1" :checked="rangeDonwloadFlag" @click="rangeDonwloadFlag = true; allDownloadFlag = false;" />Download by date range
+		</label>
+		<view class="download-config-container">
+			<view style="margin-top: 20px;">
+				<text style="font-size: 14px; margin-top: 14px; margin-left: 12px; color: #ADAFC1;">Range: </text>
+				<view class="download-range-picker">
+					<uni-datetime-picker :disabled="!rangeDonwloadFlag" v-model="datetimerange" type="datetimerange" rangeSeparator="-" />
+				</view>
+			</view>
+		</view>
+		<label class="checkbox">
+			<checkbox value="r2" :checked="allDownloadFlag" @click="rangeDonwloadFlag = false; allDownloadFlag = true;" />Download All
+		</label>
 		<view class="dw_btn">
 			<view class="btn_group">
 				<button type="primary" :disabled="btnDisabled" @click="getData">Download</button>
@@ -47,6 +73,9 @@
 	export default {
 		data() {
 			return {
+				datetimerange: null,
+				rangeDonwloadFlag: true,
+				allDownloadFlag: false,
 				path: '/Documents/LoraWAN',
 				total: 90000,
 				current: 0,
@@ -530,87 +559,90 @@ Date/Time,RECORD,Battery Voltage(V),Reading(R1),Reading(R2),Reading(R3),Reading(
 				// this.convertedTime = this.convertToTimeZoneWithoutIntl(this.deviceUTC,this.timeZones[this.selectedIndex].text);
 			},
 			convertToTimeZoneWithoutIntl(dateStr, targetUtcOffsetStr, options = {}) {
-			    const defaultOptions = {
-			        includeSeconds: true,
-			        includeDate: true,
-			        separator: ' ',
-			    };
-			    options = { ...defaultOptions, ...options };
+				const defaultOptions = {
+					includeSeconds: true,
+					includeDate: true,
+					separator: ' ',
+				};
+				options = {
+					...defaultOptions,
+					...options
+				};
 				let utcDate = dateStr.replace(' ', 'T') + 'Z'; // 将空格替换为T，符合ISO 8601标准
 				let date = new Date(utcDate);
-			    // 1. 解析目标时区的偏移量
-			    const offsetRegex = /^UTC([+-])(\d{2}):(\d{2})$/;
-			    const match = targetUtcOffsetStr.match(offsetRegex);
-			
-			    if (!match) {
-			        console.error("Invalid UTC offset format. Expected 'UTC+HH:MM' or 'UTC-HH:MM'.");
-			        return date.toISOString(); // 返回默认的 ISO 格式作为 fallback
-			    }
-			
-			    const sign = match[1] === '+' ? 1 : -1;
-			    const offsetHours = parseInt(match[2], 10);
-			    const offsetMinutes = parseInt(match[3], 10);
-			    const targetOffsetMilliseconds = sign * (offsetHours * 60 + offsetMinutes) * 60 * 1000;
-			
-			    // 2. 获取原始时间的 UTC 时间戳 (Date 对象内部就是 UTC 时间戳)
-			    const utcTimestamp = date.getTime();
-			
-			    // 3. 获取本地时区与 UTC 的偏移量（以分钟为单位）
-			    // 注意：getTimezoneOffset() 返回的是本地时区与 UTC 的分钟差，
-			    // 且其值为正表示本地时区落后于 UTC，负表示本地时区领先于 UTC。
-			    // 例如：PDT (UTC-07:00) 返回 420 (正数，因为比UTC慢7小时)
-			    // 北京 (UTC+08:00) 返回 -480 (负数，因为比UTC快8小时)
-			    const localTimezoneOffsetMinutes = date.getTimezoneOffset(); // in minutes
-			
-			    // 将本地时区偏移量转换为毫秒
-			    const localTimezoneOffsetMilliseconds = localTimezoneOffsetMinutes * 60 * 1000;
-			
-			    // 4. 计算调整后的时间戳
-			    // 目标时区的毫秒 = UTC 毫秒 + 目标时区相对于 UTC 的偏移毫秒
-			    // 例如：
-			    // 如果目标是 UTC+8， targetOffsetMilliseconds = +8 * 60 * 60 * 1000
-			    // 如果目标是 UTC-5， targetOffsetMilliseconds = -5 * 60 * 60 * 1000
-			    //
-			    // JavaScript Date 对象的方法 (getHours(), getMinutes() 等) 在没有 Intl 支持时，
-			    // 默认是基于 "本地时区" 来解释内部存储的 UTC 毫秒数。
-			    // 所以，我们需要计算出目标时区与本地时区之间的“相对偏移”，然后调整 Date 对象。
-			    //
-			    // 方法一：先转换为 UTC 时间，再应用目标偏移量。
-			    // date.getTime() 已经是 UTC 毫秒数。
-			    // targetDateInTargetOffset = new Date(utcTimestamp + targetOffsetMilliseconds);
-			    //
-			    // 此时，targetDateInTargetOffset 内部的毫秒数代表了目标时区实际的 UTC 毫秒数。
-			    // 但当我们调用 targetDateInTargetOffset.getUTCHours() 时，它会返回其内部 UTC 毫秒数对应的 UTC 小时。
-			    // 而我们想要的是目标时区的小时，所以我们需要使用 getUTCHours() 方法。
-			    //
-			    // 5. 手动格式化
-			    const targetDate = new Date(utcTimestamp + targetOffsetMilliseconds);
-			
-			    // 获取目标时区的时间组件 (使用 UTC 方法，因为 targetDate 的内部毫秒数已经被调整为目标时区所对应的 UTC 毫秒)
-			    const year = targetDate.getUTCFullYear();
-			    const month = (targetDate.getUTCMonth() + 1).toString().padStart(2, '0'); // 月份从0开始
-			    const day = targetDate.getUTCDate().toString().padStart(2, '0');
-			    const hours = targetDate.getUTCHours().toString().padStart(2, '0');
-			    const minutes = targetDate.getUTCMinutes().toString().padStart(2, '0');
-			    const seconds = targetDate.getUTCSeconds().toString().padStart(2, '0');
-			
-			    let formattedDate = '';
-			    if (options.includeDate) {
-			        formattedDate += `${year}-${month}-${day}`;
-			    }
-			
-			    let formattedTime = `${hours}:${minutes}`;
-			    if (options.includeSeconds) {
-			        formattedTime += `:${seconds}`;
-			    }
-			
-			    if (options.includeDate && formattedTime) {
-			        return `${formattedDate}${options.separator}${formattedTime}`;
-			    } else if (options.includeDate) {
-			        return formattedDate;
-			    } else {
-			        return formattedTime;
-			    }
+				// 1. 解析目标时区的偏移量
+				const offsetRegex = /^UTC([+-])(\d{2}):(\d{2})$/;
+				const match = targetUtcOffsetStr.match(offsetRegex);
+
+				if (!match) {
+					console.error("Invalid UTC offset format. Expected 'UTC+HH:MM' or 'UTC-HH:MM'.");
+					return date.toISOString(); // 返回默认的 ISO 格式作为 fallback
+				}
+
+				const sign = match[1] === '+' ? 1 : -1;
+				const offsetHours = parseInt(match[2], 10);
+				const offsetMinutes = parseInt(match[3], 10);
+				const targetOffsetMilliseconds = sign * (offsetHours * 60 + offsetMinutes) * 60 * 1000;
+
+				// 2. 获取原始时间的 UTC 时间戳 (Date 对象内部就是 UTC 时间戳)
+				const utcTimestamp = date.getTime();
+
+				// 3. 获取本地时区与 UTC 的偏移量（以分钟为单位）
+				// 注意：getTimezoneOffset() 返回的是本地时区与 UTC 的分钟差，
+				// 且其值为正表示本地时区落后于 UTC，负表示本地时区领先于 UTC。
+				// 例如：PDT (UTC-07:00) 返回 420 (正数，因为比UTC慢7小时)
+				// 北京 (UTC+08:00) 返回 -480 (负数，因为比UTC快8小时)
+				const localTimezoneOffsetMinutes = date.getTimezoneOffset(); // in minutes
+
+				// 将本地时区偏移量转换为毫秒
+				const localTimezoneOffsetMilliseconds = localTimezoneOffsetMinutes * 60 * 1000;
+
+				// 4. 计算调整后的时间戳
+				// 目标时区的毫秒 = UTC 毫秒 + 目标时区相对于 UTC 的偏移毫秒
+				// 例如：
+				// 如果目标是 UTC+8， targetOffsetMilliseconds = +8 * 60 * 60 * 1000
+				// 如果目标是 UTC-5， targetOffsetMilliseconds = -5 * 60 * 60 * 1000
+				//
+				// JavaScript Date 对象的方法 (getHours(), getMinutes() 等) 在没有 Intl 支持时，
+				// 默认是基于 "本地时区" 来解释内部存储的 UTC 毫秒数。
+				// 所以，我们需要计算出目标时区与本地时区之间的“相对偏移”，然后调整 Date 对象。
+				//
+				// 方法一：先转换为 UTC 时间，再应用目标偏移量。
+				// date.getTime() 已经是 UTC 毫秒数。
+				// targetDateInTargetOffset = new Date(utcTimestamp + targetOffsetMilliseconds);
+				//
+				// 此时，targetDateInTargetOffset 内部的毫秒数代表了目标时区实际的 UTC 毫秒数。
+				// 但当我们调用 targetDateInTargetOffset.getUTCHours() 时，它会返回其内部 UTC 毫秒数对应的 UTC 小时。
+				// 而我们想要的是目标时区的小时，所以我们需要使用 getUTCHours() 方法。
+				//
+				// 5. 手动格式化
+				const targetDate = new Date(utcTimestamp + targetOffsetMilliseconds);
+
+				// 获取目标时区的时间组件 (使用 UTC 方法，因为 targetDate 的内部毫秒数已经被调整为目标时区所对应的 UTC 毫秒)
+				const year = targetDate.getUTCFullYear();
+				const month = (targetDate.getUTCMonth() + 1).toString().padStart(2, '0'); // 月份从0开始
+				const day = targetDate.getUTCDate().toString().padStart(2, '0');
+				const hours = targetDate.getUTCHours().toString().padStart(2, '0');
+				const minutes = targetDate.getUTCMinutes().toString().padStart(2, '0');
+				const seconds = targetDate.getUTCSeconds().toString().padStart(2, '0');
+
+				let formattedDate = '';
+				if (options.includeDate) {
+					formattedDate += `${year}-${month}-${day}`;
+				}
+
+				let formattedTime = `${hours}:${minutes}`;
+				if (options.includeSeconds) {
+					formattedTime += `:${seconds}`;
+				}
+
+				if (options.includeDate && formattedTime) {
+					return `${formattedDate}${options.separator}${formattedTime}`;
+				} else if (options.includeDate) {
+					return formattedDate;
+				} else {
+					return formattedTime;
+				}
 			}
 		},
 		onLoad() {
@@ -621,13 +653,18 @@ Date/Time,RECORD,Battery Voltage(V),Reading(R1),Reading(R2),Reading(R3),Reading(
 			if (bleInfo.ble_connected && !this.showProgress) {
 				this.getInfo();
 			}
-			
+
 			// console.log("onshow: ", this.readCount, this.targetFile, this.fileContent);
 		},
 	}
 </script>
 
 <style>
+	.checkbox {
+		color: #ADAFC1;
+		font-size: 14px;
+	}
+
 	.picker {
 		padding: 20px;
 		font-size: 18px;
@@ -638,6 +675,41 @@ Date/Time,RECORD,Battery Voltage(V),Reading(R1),Reading(R2),Reading(R3),Reading(
 		padding: 10px;
 		font-size: 14px;
 		line-height: 24px;
+	}
+
+	.usage-container {
+		display: flex;
+		flex-direction: row;
+		justify-content: space-between;
+		font-size: 16px;
+		margin-top: 24px;
+		margin-left: 16px;
+		margin-right: 16px;
+	}
+
+	.download-container {
+		background: #1E1E26;
+		height: 68px;
+		margin: 24px 16px;
+		border-radius: 10px;
+	}
+
+	.timezone-container {
+		background: #1E1E26;
+		height: 88px;
+		margin: 24px 16px;
+		border-radius: 10px;
+	}
+
+	.download-config-container {
+		background: #1E1E26;
+		height: 88px;
+		margin: 24px 16px;
+		border-radius: 10px;
+	}
+
+	.download-range-picker {
+		margin:14px 14px 0 14px;
 	}
 
 	.dw_btn {

@@ -25,10 +25,10 @@
 		}
 	],
 	"tabBar": {
-		"color": "#7A7E83",
-		"selectedColor": "#3cc51f",
+		"color": "#5C5E6F",
+		"selectedColor": "#1378FE",
 		"borderStyle": "black",
-		"backgroundColor": "#ffffff",
+		"backgroundColor": "#15151B",
 		"list": [{
 			"pagePath": "pages/index/index",
 			"iconPath": "/static/image/sousuo.png",
@@ -52,12 +52,12 @@
 		}]
 	},
 	"globalStyle": {
-		"navigationBarTextStyle": "black",
+		"navigationBarTextStyle": "white",
 		"navigationBarTitleText": "uni-app",
-		"navigationBarBackgroundColor": "#55aaff",
-		"backgroundColor": "#55aaff",
+		"navigationBarBackgroundColor": "#15151B",
+		"backgroundColor": "#15151B",
 		"app-plus": {
-			"background": "#55aaff"
+			"background": "#15151B"
 		}
 	}
 }

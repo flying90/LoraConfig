@@ -1,5 +1,14 @@
 <template>
-	<view class="container">
+	<view v-if="!scanFlag && !bleConnectFlag" class="container">
+		<text class="logo" @longpress="handleLogin">Ground IQ Pte Ltd</text>
+		<view class="show-start">
+			<image src="/static/img/search.png" mode="aspectFit"></image>
+		</view>
+		<view class="scan-btn">
+			<button v-if="!bleConnectFlag" type="primary" :loading="scanFlag" @click="startBluetoothDevicesDiscovery">Start Scan</button>
+		</view>
+	</view>
+	<view v-else class="container">
 		<text class="logo" @longpress="handleLogin">Ground IQ Pte Ltd</text>
 		<!-- <image src="@/static/image/log.jpg" style="width: 100%; height: 30px;" mode="aspectFit" @longpress="handleLogin"></image> -->
 		<!-- 登录弹窗 -->
@@ -19,7 +28,7 @@
 			</view>
 		</uni-popup>
 		<view class="divider"></view>
-		<text style="font-size: 18px;">Scan Results:</text>
+		<text style="font-size: 18px; color: #CACED4;">Scan Results:</text>
 		<scroll-view scroll-y="true" class="scroll_y">
 			<view class="dev_option" v-for="(device, index) in bleDevList" :key="index" @click="handleConnect(device)">
 				<view class="dev">
@@ -36,9 +45,23 @@
 			</view>
 		</scroll-view>
 		<view class="srh_btn">
-			<button v-if="!bleConnectFlag" type="primary" :loading="scanFlag" @click="startBluetoothDevicesDiscovery">Start Scan</button>
-			<button v-else-if="bleConnectFlag" type="warn" @click="closeBLEConnection">Disconnect</button>
+			<button v-if="!bleConnectFlag" type="primary" :loading="scanFlag">Scanning...</button>
+			<view v-else-if="bleConnectFlag" class="btn_group">
+				<button type="primary" @click="handleClick">Upgrade</button>
+				<button type="warn" @click="closeBLEConnection">Disconnect</button>
+			</view>
 		</view>
+		<uni-popup ref="configPopup" type="center" @change="configChange" :mask-click="false">
+			<view class="popup-content">
+				<text class="popup-title">Firmware Update</text>
+				<view class="btn-group">
+					<button @click="firmwareUpdate" type="primary">Firmware Update</button>
+					<button @click="cancelUpdate" type="primary">Cancel</button>
+				</view>
+
+				<progress :percent="percent" show-info />
+			</view>
+		</uni-popup>
 	</view>
 </template>
 
@@ -60,6 +83,10 @@
 				scanFlag: false,
 				readTimer: null,
 				isBLEListenerBound: false,
+				currentChunk: 0,
+				totalChunks: 0,
+				softVersion: null,
+				firmwareUpdateFlag: false,
 			}
 		},
 		computed: {
@@ -68,9 +95,36 @@
 			},
 			isLoggedIn() {
 				return bleInfo.isLogged;
-			}
+			},
+			percent() {
+				return (this.currentChunk / this.totalChunks * 100).toFixed(0);
+			},
 		},
 		methods: {
+			handleClick(e) {
+				this.$refs.configPopup.open();
+				uni.hideTabBar();
+			},
+			configChange(e) {
+				if (e.show) {
+					// console.log("更新打开");
+					this.firmwareUpdateFlag = true;
+				} else {
+					// console.log("更新关闭");
+					this.firmwareUpdateFlag = false;
+				}
+			},
+			cancelUpdate() {
+				this.$refs.configPopup.close();
+				uni.showTabBar({
+					success: (res) => {
+						console.log("show tab bar success: ", res);
+					},
+					fail: (res) => {
+						console.log("show tab bar failed: ", res);
+					}
+				});
+			},
 			handleLogin() {
 				if (this.isLoggedIn) {
 					this.$refs.logoutPopup.open();
@@ -390,6 +444,77 @@
 						clearInterval(this.readTimer);
 					}
 				});
+			},
+			firmwareUpdate() {
+				const deviceType = bleInfo.ble_device.name.split('-')[0];
+				const ver_check_url = `http://update.sncon.cn/${deviceType}/version.json`;
+				const firmware_download_url = `http://update.sncon.cn/${deviceType}/${deviceType}.bin`;
+				// console.log(`版本地址:${ver_check_url},固件地址:${firmware_download_url}`);
+				this.readVersion();
+				uni.request({
+					url: ver_check_url, //仅为示例，并非真实接口地址。
+					success: (res) => {
+						// console.log("云端软件版本: ", res.data.soft_ver);
+						// console.log("本机软件版本: ", this.softVersion);
+						if (res.data.soft_ver > this.softVersion) {
+							// console.log("软件有更新");
+							uni.request({
+								url: firmware_download_url,
+								responseType: 'arraybuffer',
+								success: (res) => {
+									const firmware = res.data;
+									bleInfo.ble_recv_data = "";
+									const cmdStr = "01 06 00 05 00 00 01";
+									const requestFrame = getModbusCmdBuf(cmdStr);
+
+									uni.writeBLECharacteristicValue({
+										deviceId: bleInfo.ble_device.deviceId,
+										serviceId: bleInfo.ble_service.uuid,
+										characteristicId: bleInfo.ble_send_characteristic.uuid,
+										value: requestFrame,
+										success: (res) => {
+											// console.log("通用设置发送成功: " + res.errMsg);
+											uni.$once("dataArrive", () => {
+												if (bleInfo.ble_recv_data) {
+													console.log("ble info " + bleInfo.ble_recv_data);
+													if (crcCheck(bleInfo.ble_recv_data)) {
+														let data = bleInfo.ble_recv_data.slice(6, bleInfo.ble_recv_data.length - 4).match(/.{1,8}/g);
+														// console.log(`更新写入回复:${data}`);
+														setTimeout(() => {
+															this.sendInChunks(
+																firmware
+															).then(() => {
+																console.log("所有分片发送完成 ✅");
+															}).catch(err => {
+																console.error("发送失败 ❌", err);
+															});
+														}, 1000);
+													} else {
+														bleInfo.ble_recv_data = '';
+													}
+												}
+											});
+										},
+										fail: (err) => {
+											console.error("下发设置失败: " + err.errMsg);
+											uni.showToast({
+												title: "write failed.",
+												icon: "error",
+												duration: 2000
+											})
+										}
+									});
+								}
+							})
+						} else {
+							uni.showToast({
+								title: "No update yet."
+							})
+						}
+						// this.printArrayBufferHex(res.data);
+
+					}
+				});
 			}
 		},
 		mounted() {
@@ -404,12 +529,34 @@
 		font-size: 14px;
 		line-height: 24px;
 	}
-	.logo{
+
+	.show-start {
+		width: 240px;
+		height: 240px;
+		margin-top: 70px;
+		margin-bottom: 70px;
+		text-align: center;
+		/* margin: 70px 68px; */
+	}
+
+	.scan-btn {
+		width: 200px;
+		height: 42px;
+		margin: auto;
+	}
+
+	.btn_group {
+		display: flex;
+	}
+
+	.logo {
 		display: block;
 		height: 30px;
 		text-align: center;
 		font-size: 26px;
+		color: #FFF;
 	}
+
 	.divider {
 		height: 1px;
 		background-color: #ddd;
@@ -454,7 +601,7 @@
 	}
 
 	.dev_option {
-		background: #F5F6F7;
+		background: #1E1E26;
 		/* margin: 4px 0px; */
 		border-radius: 12px;
 	}
@@ -462,11 +609,13 @@
 	.dev {
 		display: inline-block;
 		padding-bottom: 10px;
+		color: #CACED4;
 	}
 
 	.dev_ico {
-		width: 38px;
-		height: 38px;
+		width: 24px;
+		height: 24px;
+		margin: 0 5px 5px 5px;
 	}
 
 	.dev.dev_info {
@@ -484,5 +633,10 @@
 		left: 0;
 		bottom: 0;
 		width: 100%;
+	}
+
+	button {
+		width: 100%;
+		margin: 8px;
 	}
 </style>
