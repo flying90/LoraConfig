@@ -14,6 +14,35 @@ export function ab2hex(buffer) {
 }
 
 /**
+ * 将 ASCII 字符串转换为 ArrayBuffer，用于 BLE 写入
+ * 仅处理 0~0xFF 的字节字符（ASCII / Latin-1），适合传输 "BLEPASSWORD:xxxx" 这类协议帧
+ * @param {string} str:待转换字符串
+ * @returns {ArrayBuffer}
+ */
+export function str2ab(str) {
+	const buf = new ArrayBuffer(str.length);
+	const view = new Uint8Array(buf);
+	for (let i = 0; i < str.length; i++) {
+		view[i] = str.charCodeAt(i) & 0xff;
+	}
+	return buf;
+}
+
+/**
+ * 将 ArrayBuffer 解析为 ASCII 字符串，用于解析 BLE 文本响应（如 authorized/unauthorized）
+ * @param {ArrayBuffer} buffer:二进制数据
+ * @returns {string}
+ */
+export function ab2str(buffer) {
+	const bytes = new Uint8Array(buffer);
+	let str = '';
+	for (let i = 0; i < bytes.length; i++) {
+		str += String.fromCharCode(bytes[i]);
+	}
+	return str;
+}
+
+/**
  * @param {string} byteStr: 4字节ABCD顺序的浮点数字节码（不能有空格）
  * @returns {number} floatNumber: 转换后的浮点数
  */

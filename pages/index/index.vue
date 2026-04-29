@@ -27,6 +27,18 @@
 				<button @click="logout" type="primary">confirm</button>
 			</view>
 		</uni-popup>
+
+		<!-- 蓝牙连接密码弹窗：默认密码失败时弹出，用户输入密码后再次发起认证 -->
+		<uni-popup ref="blePasswordPopup" type="center" :mask-click="false">
+			<view class="popup-content">
+				<text class="popup-title">Bluetooth Authentication</text>
+				<input v-model="inputBlePassword" placeholder="Bluetooth Password" type="password" class="popup-input" />
+				<view class="btn-group">
+					<button @click="submitBlePassword" type="primary">Confirm</button>
+					<button @click="cancelBlePassword" type="warn">Cancel</button>
+				</view>
+			</view>
+		</uni-popup>
 		<view class="divider"></view>
 		<text style="font-size: 18px; color: #CACED4;">Scan Results:</text>
 		<scroll-view scroll-y="true" class="scroll_y">
@@ -68,7 +80,9 @@
 <script>
 	import bleInfo from "@/common/common"
 	import {
-		ab2hex
+		ab2hex,
+		ab2str,
+		str2ab
 	} from "@/common/utils"
 	import {
 		crcCheck,
@@ -80,6 +94,10 @@
 				bleDevList: [],
 				inputPassword: "",
 				defaultPassword: "datawave",
+				// 蓝牙连接密码：默认值与用户输入值
+				defaultBlePassword: "12345678",
+				inputBlePassword: "",
+				blePasswordPrompted: false,
 				scanFlag: false,
 				readTimer: null,
 				isBLEListenerBound: false,
@@ -244,6 +262,19 @@
 			},
 			/***/
 			handleBLEDataChange(res) {
+				// 认证未通过前，回包应当是 "authorized" / "unauthorized" 这类 ASCII 文本
+				// 这一段不走原 hex 累加路径，避免污染后续 modbus 数据流
+				if (!bleInfo.isAuthorized) {
+					let text = ab2str(res.value);
+					console.log("认证阶段收到: " + text);
+					// 注意：unauthorized 包含 authorized，先匹配长串
+					if (text.indexOf("unauthorized") !== -1) {
+						uni.$emit("bleAuthResult", "unauthorized");
+					} else if (text.indexOf("authorized") !== -1) {
+						uni.$emit("bleAuthResult", "authorized");
+					}
+					return;
+				}
 				let resHex = ab2hex(res.value);
 				// console.log("解析后数据: " + resHex);
 				bleInfo.ble_recv_data += resHex;
@@ -292,28 +323,126 @@
 					serviceId: bleInfo.ble_service.uuid, // 监听指定的服务
 					characteristicId: bleInfo.ble_recv_characteristic.uuid, // 监听对应的特征值
 					success: (res) => {
-						uni.hideLoading();
-						uni.showToast({
-							title: "success.",
-							duration: 2000
-						});
 						console.log("开启监听成功: " + res.errMsg);
-						bleInfo.ble_connected = true;
+						// 监听已就绪，但此刻还不能置 ble_connected = true，
+						// 必须先通过 BLE 密码认证。绑定数据回调后立即用默认密码尝试。
 						if (!this.isBLEListenerBound) {
 							uni.onBLECharacteristicValueChange(this.handleBLEDataChange);
 							this.isBLEListenerBound = true;
 						}
-						this.readCount();
-						// 50秒读一次缓存数量以防止设备休眠
-						this.readTimer = setInterval(() => {
-							this.readCount();
-						}, 1000 * 50);
+						uni.showLoading({
+							mask: true,
+							title: "Authenticating..."
+						});
+						this.attemptBleAuth(this.defaultBlePassword);
 					},
 					fail(err) {
 						uni.hideLoading();
 						console.error("监听特征值出错:" + err);
 					}
 				});
+			},
+			/**
+			 * 发送 BLE 密码并等待 authorized/unauthorized 回包
+			 * @param {string} password 待尝试的密码
+			 */
+			attemptBleAuth(password) {
+				const frame = `BLEPASSWORD:${password}`;
+				console.log("发送认证帧: " + frame);
+				// 监听本次认证结果（一次性）
+				uni.$once("bleAuthResult", (result) => {
+					if (result === "authorized") {
+						this.onBleAuthorized();
+					} else {
+						this.onBleUnauthorized();
+					}
+				});
+				uni.writeBLECharacteristicValue({
+					deviceId: bleInfo.ble_device.deviceId,
+					serviceId: bleInfo.ble_service.uuid,
+					characteristicId: bleInfo.ble_send_characteristic.uuid,
+					value: str2ab(frame),
+					fail: (err) => {
+						uni.hideLoading();
+						console.error("发送认证帧失败: " + (err.errMsg || err.errCode));
+						// 写失败也走"未授权"路径，让用户重输或取消
+						uni.$off("bleAuthResult");
+						this.onBleUnauthorized();
+					}
+				});
+			},
+			/**
+			 * 认证通过：解锁数据交互、关闭密码弹窗、启动防休眠循环
+			 */
+			onBleAuthorized() {
+				bleInfo.isAuthorized = true;
+				bleInfo.ble_connected = true;
+				this.inputBlePassword = "";
+				if (this.blePasswordPrompted) {
+					this.$refs.blePasswordPopup.close();
+					this.blePasswordPrompted = false;
+				}
+				uni.hideLoading();
+				uni.showToast({
+					title: "Authorized.",
+					duration: 2000
+				});
+				this.readCount();
+				// 50秒读一次缓存数量以防止设备休眠
+				this.readTimer = setInterval(() => {
+					this.readCount();
+				}, 1000 * 50);
+			},
+			/**
+			 * 认证失败：弹窗让用户输入密码继续尝试
+			 */
+			onBleUnauthorized() {
+				uni.hideLoading();
+				uni.showToast({
+					title: "Auth failed.",
+					icon: "none",
+					duration: 1500
+				});
+				this.inputBlePassword = "";
+				if (!this.blePasswordPrompted) {
+					this.blePasswordPrompted = true;
+					this.$refs.blePasswordPopup.open();
+				}
+			},
+			/**
+			 * 用户在弹窗中点击 Confirm，提交密码再次发起认证
+			 */
+			submitBlePassword() {
+				if (!this.inputBlePassword) {
+					uni.showToast({
+						title: "Enter password.",
+						icon: "none"
+					});
+					return;
+				}
+				uni.showLoading({
+					mask: true,
+					title: "Authenticating..."
+				});
+				this.attemptBleAuth(this.inputBlePassword);
+			},
+			/**
+			 * 用户取消密码输入：放弃认证并断开蓝牙连接
+			 */
+			cancelBlePassword() {
+				this.inputBlePassword = "";
+				this.blePasswordPrompted = false;
+				this.$refs.blePasswordPopup.close();
+				uni.$off("bleAuthResult");
+				if (bleInfo.ble_device) {
+					uni.closeBLEConnection({
+						deviceId: bleInfo.ble_device.deviceId,
+						complete: () => {
+							bleInfo.isAuthorized = false;
+							bleInfo.ble_connected = false;
+						}
+					});
+				}
 			},
 			/**
 			 * 获取某个服务下的所有特征值
@@ -402,6 +531,7 @@
 							uni.hideLoading();
 							console.log('连接低功耗蓝牙失败，错误码：' + e.errCode);
 							bleInfo.ble_connected = false;
+							bleInfo.isAuthorized = false;
 							uni.showToast({
 								title: 'failed.',
 								icon: 'error',
@@ -420,6 +550,7 @@
 					deviceId,
 					success: res => {
 						bleInfo.ble_connected = false;
+						bleInfo.isAuthorized = false;
 						clearInterval(this.readTimer);
 						console.log('断开低功耗蓝牙成功:' + res.errMsg);
 					},
@@ -434,13 +565,24 @@
 					console.log(`蓝牙连接状态 -------------------------->`);
 					console.log(JSON.stringify(res));
 					if (!res.connected) {
-						uni.showModal({
-							showCancel: false,
-							title: "Warning",
-							content: "Bluetooth LE disconnected!",
-							confirmText: "Confirm"
-						});
+						// 仅在已认证通过的情况下才提示掉线，避免认证阶段断开时的误报
+						if (bleInfo.ble_connected) {
+							uni.showModal({
+								showCancel: false,
+								title: "Warning",
+								content: "Bluetooth LE disconnected!",
+								confirmText: "Confirm"
+							});
+						}
 						bleInfo.ble_connected = false;
+						bleInfo.isAuthorized = false;
+						// 清理可能残留的认证回调监听与密码弹窗状态
+						uni.$off("bleAuthResult");
+						if (this.blePasswordPrompted) {
+							this.$refs.blePasswordPopup && this.$refs.blePasswordPopup.close();
+							this.blePasswordPrompted = false;
+						}
+						this.inputBlePassword = "";
 						clearInterval(this.readTimer);
 					}
 				});
