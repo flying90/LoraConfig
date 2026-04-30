@@ -262,15 +262,17 @@
 			},
 			/***/
 			handleBLEDataChange(res) {
-				// 认证未通过前，回包应当是 "authorized" / "unauthorized" 这类 ASCII 文本
-				// 这一段不走原 hex 累加路径，避免污染后续 modbus 数据流
+				// 认证未通过前，回包是 ASCII 文本：
+				//   成功 -> "authorized ok"
+				//   失败 -> "authorized error"
+				// 由于两者都以 "authorized" 开头，必须按尾部关键字 ok/error 区分。
+				// 这一段不走原 hex 累加路径，避免污染后续 modbus 数据流。
 				if (!bleInfo.isAuthorized) {
 					let text = ab2str(res.value);
 					console.log("认证阶段收到: " + text);
-					// 注意：unauthorized 包含 authorized，先匹配长串
-					if (text.indexOf("unauthorized") !== -1) {
+					if (text.indexOf("error") !== -1) {
 						uni.$emit("bleAuthResult", "unauthorized");
-					} else if (text.indexOf("authorized") !== -1) {
+					} else if (text.indexOf("ok") !== -1) {
 						uni.$emit("bleAuthResult", "authorized");
 					}
 					return;
