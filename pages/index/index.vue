@@ -343,31 +343,54 @@
 				});
 			},
 			/**
+			 * 清理一次认证尝试可能残留的事件监听与超时定时器
+			 */
+			_clearAuthPending() {
+				if (this._authTimeoutId) {
+					clearTimeout(this._authTimeoutId);
+					this._authTimeoutId = null;
+				}
+				uni.$off("bleAuthResult");
+			},
+			/**
 			 * 发送 BLE 密码并等待 authorized/unauthorized 回包
+			 * 设备在密码错误时可能完全不回数据（实测默认密码错误时设备静默丢弃），
+			 * 因此除等待回包外还设置 3 秒超时兜底，超时即按未授权处理弹窗让用户继续输入。
 			 * @param {string} password 待尝试的密码
 			 */
 			attemptBleAuth(password) {
 				const frame = `BLEPASSWORD:${password}`;
 				console.log("发送认证帧: " + frame);
-				// 监听本次认证结果（一次性）
-				uni.$once("bleAuthResult", (result) => {
+				// 清理上一次可能残留的 listener 与 timeout，防止串台
+				this._clearAuthPending();
+
+				let settled = false;
+				const finalize = (result) => {
+					if (settled) return;
+					settled = true;
+					this._clearAuthPending();
 					if (result === "authorized") {
 						this.onBleAuthorized();
 					} else {
 						this.onBleUnauthorized();
 					}
-				});
+				};
+
+				uni.$once("bleAuthResult", finalize);
+				// 密码错误时设备静默丢弃，不会回 unauthorized；3 秒未拿到结果按未授权
+				this._authTimeoutId = setTimeout(() => {
+					console.log("认证超时，按未授权处理");
+					finalize("unauthorized");
+				}, 3000);
+
 				uni.writeBLECharacteristicValue({
 					deviceId: bleInfo.ble_device.deviceId,
 					serviceId: bleInfo.ble_service.uuid,
 					characteristicId: bleInfo.ble_send_characteristic.uuid,
 					value: str2ab(frame),
 					fail: (err) => {
-						uni.hideLoading();
 						console.error("发送认证帧失败: " + (err.errMsg || err.errCode));
-						// 写失败也走"未授权"路径，让用户重输或取消
-						uni.$off("bleAuthResult");
-						this.onBleUnauthorized();
+						finalize("unauthorized");
 					}
 				});
 			},
@@ -433,7 +456,7 @@
 				this.inputBlePassword = "";
 				this.blePasswordPrompted = false;
 				this.$refs.blePasswordPopup.close();
-				uni.$off("bleAuthResult");
+				this._clearAuthPending();
 				if (bleInfo.ble_device) {
 					uni.closeBLEConnection({
 						deviceId: bleInfo.ble_device.deviceId,
@@ -576,8 +599,8 @@
 						}
 						bleInfo.ble_connected = false;
 						bleInfo.isAuthorized = false;
-						// 清理可能残留的认证回调监听与密码弹窗状态
-						uni.$off("bleAuthResult");
+						// 清理可能残留的认证回调监听、超时定时器与密码弹窗状态
+						this._clearAuthPending();
 						if (this.blePasswordPrompted) {
 							this.$refs.blePasswordPopup && this.$refs.blePasswordPopup.close();
 							this.blePasswordPrompted = false;
