@@ -1,5 +1,5 @@
 <template>
-	<view v-if="!scanFlag && !bleConnectFlag" class="container">
+	<view v-if="!scanFlag && !bleConnectFlag && !connectingFlag" class="container">
 		<text class="logo" @longpress="handleLogin">Ground IQ Pte Ltd</text>
 		<view class="show-start">
 			<image src="/static/img/search.png" mode="aspectFit"></image>
@@ -98,6 +98,9 @@
 				defaultBlePassword: "12345678",
 				inputBlePassword: "",
 				blePasswordPrompted: false,
+				// 从开始连接到认证完成之间为 true，保证 v-else 分支保持激活，
+				// 让 blePasswordPopup 始终被渲染、$refs 可用
+				connectingFlag: false,
 				scanFlag: false,
 				readTimer: null,
 				isBLEListenerBound: false,
@@ -297,6 +300,7 @@
 					serviceId: bleInfo.ble_service.uuid,
 					characteristicId: bleInfo.ble_send_characteristic.uuid,
 					value: modbusCmd,
+					writeType: 'writeNoResponse',
 					success: (res) => {
 						// console.log("防休眠发送成功: " + res.errMsg);
 						setTimeout(() => {
@@ -390,6 +394,9 @@
 					serviceId: bleInfo.ble_service.uuid,
 					characteristicId: bleInfo.ble_send_characteristic.uuid,
 					value: str2ab(frame),
+					// 新固件下 FFF2 仅支持 writeNoResponse；不指定时 uni-app 默认 'write' 会
+					// 返回 "property not support"
+					writeType: 'writeNoResponse',
 					fail: (err) => {
 						console.error("发送认证帧失败: " + (err.errMsg || err.errCode));
 						finalize("unauthorized");
@@ -402,6 +409,7 @@
 			onBleAuthorized() {
 				bleInfo.isAuthorized = true;
 				bleInfo.ble_connected = true;
+				this.connectingFlag = false;
 				this.inputBlePassword = "";
 				if (this.blePasswordPrompted) {
 					this.$refs.blePasswordPopup.close();
@@ -457,6 +465,7 @@
 			cancelBlePassword() {
 				this.inputBlePassword = "";
 				this.blePasswordPrompted = false;
+				this.connectingFlag = false;
 				this.$refs.blePasswordPopup.close();
 				this._clearAuthPending();
 				if (bleInfo.ble_device) {
@@ -537,6 +546,8 @@
 				}
 				this.stopBluetoothDevicesDiscovery();
 				bleInfo.ble_device = device;
+				// 进入连接+认证流程，让 v-else 始终激活以确保密码弹窗 ref 可用
+				this.connectingFlag = true;
 				uni.showLoading({
 					mask: true,
 					title: "Connecting..."
@@ -557,6 +568,7 @@
 							console.log('连接低功耗蓝牙失败，错误码：' + e.errCode);
 							bleInfo.ble_connected = false;
 							bleInfo.isAuthorized = false;
+							this.connectingFlag = false;
 							uni.showToast({
 								title: 'failed.',
 								icon: 'error',
@@ -576,6 +588,7 @@
 					success: res => {
 						bleInfo.ble_connected = false;
 						bleInfo.isAuthorized = false;
+						this.connectingFlag = false;
 						clearInterval(this.readTimer);
 						console.log('断开低功耗蓝牙成功:' + res.errMsg);
 					},
@@ -601,6 +614,7 @@
 						}
 						bleInfo.ble_connected = false;
 						bleInfo.isAuthorized = false;
+						this.connectingFlag = false;
 						// 清理可能残留的认证回调监听、超时定时器与密码弹窗状态
 						this._clearAuthPending();
 						if (this.blePasswordPrompted) {
@@ -639,6 +653,7 @@
 										serviceId: bleInfo.ble_service.uuid,
 										characteristicId: bleInfo.ble_send_characteristic.uuid,
 										value: requestFrame,
+										writeType: 'writeNoResponse',
 										success: (res) => {
 											// console.log("通用设置发送成功: " + res.errMsg);
 											uni.$once("dataArrive", () => {
