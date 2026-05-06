@@ -6,7 +6,7 @@
 					<view v-if="index === 0">
 						<view class="config_cell">
 							<text class="config_label">{{config.name}}{{config.unit?`\n(${config.unit})`: ""}}: </text>
-							<input type="number" v-model="config.value" :disabled="!config.editable" class="config_value" @change="cycleChange"></input>
+							<input type="number" v-model="config.value" :disabled="!config.editable" class="config_value" @blur="cycleChange"></input>
 						</view>
 						<text v-if="!cycleChecked" class="warning">collection cycle verification failed</text>
 					</view>
@@ -20,7 +20,7 @@
 					<view v-else-if="index === 2">
 						<view class="config_cell">
 							<text class="config_label">{{config.name}}{{config.unit?`\n(${config.unit})`: ""}}: </text>
-							<input type="number" v-model="config.value" :disabled="!config.editable" class="config_value" @change="deviceSNChange"></input>
+							<input type="number" v-model="config.value" :disabled="!config.editable" class="config_value" @blur="deviceSNChange"></input>
 						</view>
 						<text v-if="!snChecked" class="warning">device SN verification failed</text>
 					</view>
@@ -31,36 +31,37 @@
 					<view v-else-if="index === 4">
 						<view class="config_cell">
 							<text class="config_label">{{config.name}}{{config.unit?`\n(${config.unit})`: ""}}: </text>
-							<input type="text" :value="loraChannels" :disabled="!isLogged" class="config_value" @change="loraChannelsChange" @clear="loraChannelsClear"></input>
+							<input type="text" :value="loraChannels" :disabled="!isLogged" class="config_value" @blur="loraChannelsChange" @clear="loraChannelsClear"></input>
 						</view>
 						<text v-if="!loraChannelsChecked" class="warning">channels verification failed</text>
 					</view>
 					<view v-else-if="index == 5">
 						<view class="config_cell">
 							<text class="config_label">{{config.name}}{{config.unit?`\n(${config.unit})`: ""}}: </text>
-							<input type="number" v-model="config.value" :disabled="!config.editable" class="config_value" @change="fportChange"></input>
+							<input type="number" v-model="config.value" :disabled="!config.editable" class="config_value" @blur="fportChange"></input>
 						</view>
 						<text v-if="!fportChecked" class="warning">fport verification failed</text>
 					</view>
 					<view v-else-if="index === 6">
 						<view class="config_cell">
 							<text class="config_label">{{config.name}}{{config.unit?`\n(${config.unit})`: ""}}: </text>
-							<input type="text" :value="devEUI" :disabled="!config.editable" class="config_value" @change="devEUIChange"></input>
+							<input type="text" :value="devEUI" :disabled="!config.editable" class="config_value" @blur="devEUIChange"></input>
 						</view>
 						<text v-if="!devEUIChecked" class="warning">devEUI verification failed</text>
 					</view>
 					<view v-else-if="index === 7">
 						<view class="config_cell">
 							<text class="config_label">{{config.name}}{{config.unit?`\n(${config.unit})`: ""}}: </text>
-							<input type="text" :value="appKey" :disabled="!config.editable" class="config_value" @change="appKeyChange"></input>
+							<input type="text" :value="appKey" :disabled="!config.editable" class="config_value" @blur="appKeyChange"></input>
 						</view>
 						<text v-if="!appKeyChecked" class="warning">appKey verification failed</text>
 					</view>
 					<view v-else-if="index === 8">
 						<view class="config_cell">
 							<text class="config_label">{{config.name}}{{config.unit?`\n(${config.unit})`: ""}}: </text>
-							<input type="number" v-model="config.value" :disabled="!config.editable" class="config_value" @change="fportChange"></input>
+							<input type="text" v-model="config.value" :disabled="!config.editable" class="config_value" @blur="blePasswordChange"></input>
 						</view>
+						<text v-if="!blePasswordChecked" class="warning">Only letters and numbers are supported. Length limit: 8</text>
 					</view>
 				</view>
 				<view v-if="devName.includes('DWL4')">
@@ -94,7 +95,7 @@
 		<view class="btn_group">
 			<button type="primary" :disabled="btnDisabled" @click="readConfigure">Read</button>
 			<button type="primary" :disabled="btnDisabled" @click="report">Report</button>
-			<button type="primary" :disabled="btnDisabled" @click="commitConfigure">Submit</button>
+			<button type="primary" :disabled="btnDisabled | (!configReaded)" @click="commitConfigure">Submit</button>
 		</view>
 	</view>
 </template>
@@ -106,7 +107,9 @@
 		calculateChannelMask,
 		parseChannelMask,
 		byteStr2Float,
-		float2ByteStr
+		float2ByteStr,
+		hexToAscii,
+		asciiToHex,
 	} from "@/common/utils";
 	import bleInfo from "@/common/common"
 	import {
@@ -116,6 +119,7 @@
 	export default {
 		data() {
 			return {
+				configReaded: false,
 				cycleChecked: true,
 				snChecked: true,
 				datetimeConfig: false,
@@ -123,6 +127,7 @@
 				fportChecked: true,
 				devEUIChecked: true,
 				appKeyChecked: true,
+				blePasswordChecked: true,
 				commonConfigure: [{
 						name: "Collection Cycle",
 						value: 1,
@@ -387,7 +392,7 @@
 			},
 			readCommonConfigure() {
 				bleInfo.ble_recv_data = "";
-				let cmdStr = "01 03 00 01 00 00 12";
+				let cmdStr = "01 03 00 01 00 00 14";
 				// console.log("读取通用设置: ", cmdStr);
 				let modbusCmd = getModbusCmdBuf(cmdStr);
 				uni.writeBLECharacteristicValue({
@@ -449,6 +454,9 @@
 												this.commonConfigure[7].value_3 = data[16];
 												this.commonConfigure[7].value_4 = data[17];
 												break;
+											case 19:
+												this.commonConfigure[8].value = hexToAscii(data[18] + data[19]);
+												break;
 											default:
 												break;
 										}
@@ -507,6 +515,7 @@
 											this.tiltConfigure[i + 1].value = Number(byteStr2Float(data[i]).toFixed(4));
 										}
 									}
+									this.configReaded = true;
 								} else {
 									bleInfo.ble_recv_data = '';
 								}
@@ -558,10 +567,12 @@
 					"5572404c",
 					"696e6b4c",
 					"6f526132",
-					"30313823"
+					"30313823",
+					"31323334",
+					"35363738",
 				];
 				let dataStr = "";
-				if (this.snChecked && this.cycleChecked && this.loraChannelsChecked && this.devEUIChecked && this.appKeyChecked && this.fportChecked) {
+				if (this.snChecked && this.cycleChecked && this.loraChannelsChecked && this.devEUIChecked && this.appKeyChecked && this.fportChecked && this.blePasswordChecked) {
 					for (let i = 0; i < commonConfigData.length; i++) {
 						switch (i) {
 							case 0:
@@ -608,6 +619,13 @@
 								commonConfigData[15] = this.commonConfigure[7].value_2;
 								commonConfigData[16] = this.commonConfigure[7].value_3;
 								commonConfigData[17] = this.commonConfigure[7].value_4;
+								break;
+							case 19:
+								let blePwdAscii = asciiToHex(this.commonConfigure[8].value);
+								let data = blePwdAscii.match(/.{1,8}/g);
+								console.log(data);
+								commonConfigData[18] = data[0];
+								commonConfigData[19] = data[1];
 								break;
 							default:
 								break;
@@ -806,12 +824,19 @@
 				this.commonConfigure[7].value_2 = content.slice(8, 16);
 				this.commonConfigure[7].value_3 = content.slice(16, 24);
 				this.commonConfigure[7].value_4 = content.slice(24, 32);
+			},
+			blePasswordChange(content) {
+				console.log(`BLE password change.`);
+				const reg = /^[a-zA-Z0-9]{8}$/;
+				this.blePasswordChecked = reg.test(this.commonConfigure[8].value);
+				console.log(this.blePasswordChecked);
 			}
 		},
 		mounted() {
 
 		},
 		onShow() {
+			this.configReaded = false;
 			if (bleInfo.ble_connected) {
 				this.readConfigure();
 			}
@@ -839,13 +864,13 @@
 		display: flex;
 		font-size: 18px;
 	}
-	
+
 	.time-comtainer {
 		display: flex;
 		flex-direction: row;
 		align-items: baseline;
 	}
-	
+
 	.config_value {
 		color: #FFFFFF;
 		background: #1E1E26;

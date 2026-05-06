@@ -43,6 +43,37 @@ export function ab2str(buffer) {
 }
 
 /**
+ * 将十六进制字符串转换为 ASCII 字符串
+ * @param {string} hex - 例如 "38373635"
+ * @returns {string} - 例如 "8765"
+ */
+export function hexToAscii(hex) {
+    let str = '';
+    for (let i = 0; i < hex.length; i += 2) {
+        // 截取每两个字符，按16进制解析，再转为字符
+        str += String.fromCharCode(parseInt(hex.substr(i, 2), 16));
+    }
+    return str;
+}
+
+/**
+ * 将 ASCII 字符串转换为十六进制字符串
+ * @param {string} str - 例如 "12345678"
+ * @returns {string} - 例如 "3132333435363738"
+ */
+export function asciiToHex(str) {
+    let hex = '';
+    for (let i = 0; i < str.length; i++) {
+        // 获取字符的十进制 ASCII 码，并转为 16 进制
+        let charHex = str.charCodeAt(i).toString(16);
+        
+        // 补足两位（例如将 "9" 变为 "09"），确保结果整齐
+        hex += charHex.padStart(2, '0');
+    }
+    return hex;
+}
+
+/**
  * @param {string} byteStr: 4字节ABCD顺序的浮点数字节码（不能有空格）
  * @returns {number} floatNumber: 转换后的浮点数
  */

@@ -645,7 +645,7 @@
 								success: (res) => {
 									const firmware = res.data;
 									bleInfo.ble_recv_data = "";
-									const cmdStr = "01 06 00 05 00 00 01";
+									const cmdStr = "01 06 00 01 50 00 01";
 									const requestFrame = getModbusCmdBuf(cmdStr);
 
 									uni.writeBLECharacteristicValue({
