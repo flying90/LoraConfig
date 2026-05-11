@@ -64,7 +64,7 @@
 						<text v-if="!blePasswordChecked" class="warning">Only letters and numbers are supported. Length limit: 8</text>
 					</view>
 				</view>
-				<view v-if="devName.includes('DWL4')">
+				<view v-if="devName.includes('DWL4I')">
 					<view v-for="(config,index) in dwl4Configure" :key="index">
 						<view v-if="index === 0" class="config_cell">
 							<text class="config_label">{{config.name}}{{config.unit?`\n(${config.unit})`: ""}}: </text>
@@ -76,7 +76,7 @@
 						</view>
 					</view>
 				</view>
-				<view v-else-if="devName.includes('TILT')">
+				<view v-else-if="devName.includes('TILTI')">
 					<view v-for="(config,index) in tiltConfigure" :key="index">
 						<view v-if="index === 0" class="config_cell">
 							<text class="config_label">{{config.name}}{{config.unit?`\n(${config.unit})`: ""}}: </text>
@@ -95,7 +95,8 @@
 		<view class="btn_group">
 			<button type="primary" :disabled="btnDisabled" @click="readConfigure">Read</button>
 			<button type="primary" :disabled="btnDisabled" @click="report">Report</button>
-			<button type="primary" :disabled="btnDisabled | (!configReaded)" @click="commitConfigure">Submit</button>
+			<button type="primary" :disabled="btnDisabled | (!configReaded)" @click="commitConfigure">Save</button>
+			<button type="primary" :disabled="btnDisabled" @click="restartDevice">Reset</button>
 		</view>
 	</view>
 </template>
@@ -381,6 +382,53 @@
 						});
 					},
 					fail: (err) => {
+						console.error("触发数据上报失败: " + err.errMsg);
+						uni.showToast({
+							title: "report failed.",
+							icon: "error",
+							duration: 2000
+						})
+					}
+				});
+			},
+			restartDevice() {
+				bleInfo.ble_recv_data = "";
+				let cmdStr = "01 06 00 01 51 00 01";
+				let modbusCmd = getModbusCmdBuf(cmdStr);
+				uni.writeBLECharacteristicValue({
+					deviceId: bleInfo.ble_device.deviceId,
+					serviceId: bleInfo.ble_service.uuid,
+					characteristicId: bleInfo.ble_send_characteristic.uuid,
+					value: modbusCmd,
+					success: (res) => {
+						uni.$once("dataArrive", () => {
+							if (bleInfo.ble_recv_data) {
+								if (crcCheck(bleInfo.ble_recv_data)) {
+									let data = bleInfo.ble_recv_data.slice(6, bleInfo.ble_recv_data.length - 4).match(/.{1,8}/g);
+									// console.log(data);
+									uni.showToast({
+										title: "success"
+									});
+									uni.closeBLEConnection({
+										deviceId: bleInfo.ble_device.deviceId,
+										success: res => {
+											bleInfo.ble_connected = false;
+											bleInfo.isAuthorized = false;
+											this.connectingFlag = false;
+											clearInterval(this.readTimer);
+											console.log('断开低功耗蓝牙成功:' + res.errMsg);
+										},
+										fail: e => {
+											console.log('断开低功耗蓝牙失败，错误码：' + e.errCode);
+										}
+									});
+								} else {
+									bleInfo.ble_recv_data = '';
+								}
+							}
+						});
+					},
+					fail: (err) => {
 						console.error("读取特殊设置失败: " + err.errMsg);
 						uni.showToast({
 							title: "read failed.",
@@ -485,9 +533,9 @@
 			readSpecialConfigure() {
 				bleInfo.ble_recv_data = "";
 				let cmdStr = "";
-				if (bleInfo.ble_device.name.includes("DWL4")) {
+				if (bleInfo.ble_device.name.includes("DWL4I")) {
 					cmdStr = `01 03 00 01 32 00 ${("00" + this.dwl4Configure[0].value.toString(16).toUpperCase()).slice(-2)}`;
-				} else if (bleInfo.ble_device.name.includes("TILT")) {
+				} else if (bleInfo.ble_device.name.includes("TILTI")) {
 					cmdStr = `01 03 00 01 32 00 ${("00" + this.tiltConfigure[0].value.toString(16).toUpperCase()).slice(-2)}`;
 				}
 				// console.log("读取特殊设置:", cmdStr);
@@ -506,11 +554,11 @@
 								if (crcCheck(bleInfo.ble_recv_data)) {
 									let data = bleInfo.ble_recv_data.slice(6, bleInfo.ble_recv_data.length - 4).match(/.{1,8}/g);
 									// console.log(data);
-									if (bleInfo.ble_device.name.includes("DWL4")) {
+									if (bleInfo.ble_device.name.includes("DWL4I")) {
 										for (let i = 0; i < data.length; i++) {
 											this.dwl4Configure[i + 1].value = byteStr2Int(data[i]);
 										}
-									} else if (bleInfo.ble_device.name.includes("TILT")) {
+									} else if (bleInfo.ble_device.name.includes("TILTI")) {
 										for (let i = 0; i < data.length; i++) {
 											this.tiltConfigure[i + 1].value = Number(byteStr2Float(data[i]).toFixed(4));
 										}
@@ -679,10 +727,10 @@
 			commitSpecialConfigure() {
 				bleInfo.ble_recv_data = "";
 				let cmdStr = "";
-				if (bleInfo.ble_device.name.includes("DWL4")) {
+				if (bleInfo.ble_device.name.includes("DWL4I")) {
 					cmdStr =
 						`01 15 00 01 32 00 05 ${Number(this.dwl4Configure[0].value).toString(16).padStart(8,'0')} ${Number(this.dwl4Configure[1].value).toString(16).padStart(8,'0')} ${Number(this.dwl4Configure[2].value).toString(16).padStart(8,'0')} ${Number(this.dwl4Configure[3].value).toString(16).padStart(8,'0')} ${Number(this.dwl4Configure[4].value).toString(16).padStart(8,'0')}`;
-				} else if (bleInfo.ble_device.name.includes("TILT")) {
+				} else if (bleInfo.ble_device.name.includes("TILTI")) {
 					cmdStr =
 						`01 15 00 01 32 00 04 ${float2ByteStr(Number(this.tiltConfigure[0].value))} ${float2ByteStr(Number(this.tiltConfigure[1].value))} ${float2ByteStr(Number(this.tiltConfigure[2].value))} ${float2ByteStr(Number(this.tiltConfigure[3].value))}`;
 				}

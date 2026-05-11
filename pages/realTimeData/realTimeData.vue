@@ -10,11 +10,11 @@
 					<text class="data_label">{{comChannel.channel_name}}:</text>
 					<text class="data_value">{{comChannel.value}} {{comChannel.unit}}</text>
 				</view>
-				<view class="data_cell" v-if="deviceName.includes('DWL4')" v-for="(dwl4Channel, dwl4Index) in dwl4Channels" :key="dwl4Index+9">
+				<view class="data_cell" v-if="deviceName.includes('DWL4I')" v-for="(dwl4Channel, dwl4Index) in dwl4Channels" :key="dwl4Index+9">
 					<text class="data_label">{{dwl4Channel.channel_name}}: </text>
 					<text class="data_value">{{dwl4Channel.value}} {{dwl4Channel.unit}}</text>
 				</view>
-				<view class="data_cell" v-else-if="deviceName.includes('TILT')" v-for="(tiltChannel, tiltIndex) in tiltChannels" :key="tiltIndex+9">
+				<view class="data_cell" v-else-if="deviceName.includes('TILTI')" v-for="(tiltChannel, tiltIndex) in tiltChannels" :key="tiltIndex+9">
 					<text class="data_label">{{tiltChannel.channel_name}}: </text>
 					<text class="data_value">{{tiltChannel.value}} {{tiltChannel.unit}}</text>
 				</view>
@@ -86,12 +86,7 @@
 						unit: " dBm"
 					},
 					{
-						channel_name: "Hardware Version",
-						value: 0.0,
-						unit: ""
-					},
-					{
-						channel_name: "Software Version",
+						channel_name: "Firmware Version",
 						value: 0.0,
 						unit: ""
 					},
@@ -202,7 +197,7 @@
 										title: "success."
 									});
 									this.readTime = this.getDatetime();
-									if (bleInfo.ble_device.name.includes("DWL4")) {
+									if (bleInfo.ble_device.name.includes("DWL4I")) {
 										for (let i = 0; i < data.length; i++) {
 											switch (i) {
 												case 0:
@@ -211,10 +206,10 @@
 												case 1:
 													switch (byteStr2Int(data[i])) {
 														case 10:
-															this.commonChannels[i].value = "DWL4";
+															this.commonChannels[i].value = "DWL4I";
 															break;
 														case 11:
-															this.commonChannels[i].value = "TILT";
+															this.commonChannels[i].value = "TILTI";
 															break;
 														default:
 															break;
@@ -259,6 +254,9 @@
 												case 14:
 													this.commonChannels[6].value = byteStr2Float(data[14]).toFixed(1);
 													break;
+												case 16:
+													this.commonChannels[9].value = byteStr2Float(data[16]).toFixed(1);
+													break;
 												case 19:
 													this.commonChannels[7].value = (byteStr2Float(data[19]).toFixed(0) == 1) ? "Joined" : "Not Joined";
 													break;
@@ -270,7 +268,7 @@
 													break;
 											}
 										}
-									} else if (bleInfo.ble_device.name.includes("TILT")) {
+									} else if (bleInfo.ble_device.name.includes("TILTI")) {
 										for (let i = 0; i < data.length; i++) {
 											switch (i) {
 												case 0:
@@ -279,10 +277,10 @@
 												case 1:
 													switch (byteStr2Int(data[i])) {
 														case 10:
-															this.commonChannels[i].value = "DWL4";
+															this.commonChannels[i].value = "DWL4I";
 															break;
 														case 11:
-															this.commonChannels[i].value = "TILT";
+															this.commonChannels[i].value = "TILTI";
 															break;
 														default:
 															break;
@@ -421,7 +419,7 @@
 		left: 0;
 		bottom: 0;
 	}
-	
+
 	button {
 		margin: 16px;
 	}

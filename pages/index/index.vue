@@ -82,6 +82,8 @@
 	import {
 		ab2hex,
 		ab2str,
+		byteStr2Int,
+		byteStr2Float,
 		str2ab
 	} from "@/common/utils"
 	import {
@@ -246,7 +248,7 @@
 						// console.log(JSON.stringify(res))
 
 						for (let device of res.devices) {
-							if (device.name.includes("TILT") || device.name.includes("DWL4"))
+							if (device.name.includes("TILTI") || device.name.includes("DWL4I"))
 								this.bleDevList.push(device)
 						}
 					},
@@ -288,32 +290,41 @@
 			/**
 			 * 读取数据缓存以防止休眠
 			 */
-			readCount() {
+			readVersion() {
 				if (bleInfo.isCsvLoading) {
+					// console.log("csv下载中，暂停读取设备状态");
+					return;
+				}
+				if (this.firmwareUpdateFlag) {
+					// console.log("更新固件，暂停读取设备状态");
 					return;
 				}
 				bleInfo.ble_recv_data = "";
-				let cmdStr = "01 03 00 00 00 00 01";
+				let cmdStr = "01 03 00 00 10 00 01";
 				let modbusCmd = getModbusCmdBuf(cmdStr);
 				uni.writeBLECharacteristicValue({
 					deviceId: bleInfo.ble_device.deviceId,
 					serviceId: bleInfo.ble_service.uuid,
 					characteristicId: bleInfo.ble_send_characteristic.uuid,
 					value: modbusCmd,
-					writeType: 'writeNoResponse',
 					success: (res) => {
 						// console.log("防休眠发送成功: " + res.errMsg);
-						setTimeout(() => {
-							if (bleInfo.ble_recv_data) {
-								// console.log("ble info " + bleInfo.ble_recv_data);
-								if (crcCheck(bleInfo.ble_recv_data)) {
-									console.log("防休眠成功");
-								} else {
-									bleInfo.ble_recv_data = '';
+						uni.$once("dataArrive", () => {
+							setTimeout(() => {
+								if (bleInfo.ble_recv_data) {
+									console.log("ble info " + bleInfo.ble_recv_data);
+									if (crcCheck(bleInfo.ble_recv_data)) {
+			
+										let data = bleInfo.ble_recv_data.slice(6, bleInfo.ble_recv_data.length - 4).match(/.{1,8}/g);
+										console.log(data);
+										this.softVersion = byteStr2Float(data[0]).toFixed(1);
+										console.log("软件版本：", this.softVersion);
+									} else {
+										bleInfo.ble_recv_data = '';
+									}
 								}
-							}
-						}, 500);
-
+							}, 500);
+						})
 					},
 					fail: (err) => {
 						console.error("防休眠失败: " + err.errMsg);
@@ -420,10 +431,10 @@
 					title: "Authorized.",
 					duration: 2000
 				});
-				this.readCount();
+				this.readVersion();
 				// 50秒读一次缓存数量以防止设备休眠
 				this.readTimer = setInterval(() => {
-					this.readCount();
+					this.readVersion();
 				}, 1000 * 50);
 			},
 			/**
@@ -626,17 +637,64 @@
 					}
 				});
 			},
+			chunkArrayBuffer(buffer, chunkSize = 1000) {
+				const chunks = [];
+				let offset = 0;
+				while (offset < buffer.byteLength) {
+					let end = Math.min(offset + chunkSize, buffer.byteLength);
+					chunks.push(buffer.slice(offset, end));
+					offset = end;
+				}
+				return chunks;
+			},
+			sendInChunks(buffer) {
+				// console.log(1);
+				const chunks = this.chunkArrayBuffer(buffer, 240);
+				// console.log(2);
+				this.totalChunks = chunks.length;
+				// console.log(3);
+				return new Promise(async (resolve, reject) => {
+					for (let i = 0; i < chunks.length; i++) {
+						const chunk = chunks[i];
+						try {
+							await new Promise((res, rej) => {
+								uni.writeBLECharacteristicValue({
+									deviceId: bleInfo.ble_device.deviceId,
+									serviceId: bleInfo.ble_service.uuid,
+									characteristicId: bleInfo.ble_send_characteristic.uuid,
+									value: chunk,
+									success: () => {
+										// console.log(`分片 ${i+1}/${chunks.length} 发送成功`);
+										this.currentChunk = i + 1;
+										res();
+									},
+									fail: (err) => {
+										console.error(`分片 ${i+1} 发送失败:`, err);
+										rej(err);
+									}
+								});
+							});
+							// 适当延迟，避免蓝牙堆积（根据模块情况可调整）
+							await new Promise(r => setTimeout(r, 400));
+						} catch (err) {
+							reject(err);
+							return;
+						}
+					}
+					resolve();
+				});
+			},
 			firmwareUpdate() {
 				const deviceType = bleInfo.ble_device.name.split('-')[0];
 				const ver_check_url = `http://update.sncon.cn/${deviceType}/version.json`;
 				const firmware_download_url = `http://update.sncon.cn/${deviceType}/${deviceType}.bin`;
-				// console.log(`版本地址:${ver_check_url},固件地址:${firmware_download_url}`);
+				console.log(`版本地址:${ver_check_url},固件地址:${firmware_download_url}`);
 				this.readVersion();
 				uni.request({
 					url: ver_check_url, //仅为示例，并非真实接口地址。
 					success: (res) => {
-						// console.log("云端软件版本: ", res.data.soft_ver);
-						// console.log("本机软件版本: ", this.softVersion);
+						console.log("云端软件版本: ", res.data.soft_ver);
+						console.log("本机软件版本: ", this.softVersion);
 						if (res.data.soft_ver > this.softVersion) {
 							// console.log("软件有更新");
 							uni.request({
